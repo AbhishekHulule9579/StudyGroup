@@ -1,0 +1,31 @@
+# ----------------------------
+# Spring Boot (Backend folders)
+# ----------------------------
+/backend/target/
+/demo/target/
+*.class
+*.jar
+*.war
+*.log
+
+# ----------------------------
+# React (Frontend)
+# ----------------------------
+/frontend/node_modules/
+/frontend/build/
+
+# ----------------------------
+# VS Code
+# ----------------------------
+.vscode/
+
+# ----------------------------
+# System files
+# ----------------------------
+.DS_Store
+Thumbs.db
+
+
+### Creating separate application-local.properties ###
+src/main/resources/application-local.properties
+
