@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
+import SockJS from "sockjs-client";
+import { Stomp } from "@stomp/stompjs";
 import {
   IconSend,
   IconTrash,
@@ -43,8 +45,8 @@ const PollWidget = ({ poll, onVote }) => (
   </div>
 );
 
-const GroupChat = ({ chatMessages = [] }) => {
-  const [messages, setMessages] = useState(chatMessages);
+const GroupChat = ({ groupId, currentUser, userRole }) => {
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
   const [replyTo, setReplyTo] = useState(null);
@@ -53,6 +55,141 @@ const GroupChat = ({ chatMessages = [] }) => {
   const [polls, setPolls] = useState([]);
   const [pinned, setPinned] = useState([]);
   const [uploadFile, setUploadFile] = useState(null);
+  const [stompClient, setStompClient] = useState(null);
+  const [connectionError, setConnectionError] = useState(null);
+
+  const isAdmin = userRole === 'admin';
+  const canPinMessage = (message) => isAdmin || message.senderId === currentUser?.id;
+  const canDeleteMessage = (message) => message.senderId === currentUser?.id;
+  const [openReactionPickerFor, setOpenReactionPickerFor] = useState(null);
+
+  // helper: decode unified string (e.g. "1F44D") -> emoji char(s)
+  const decodeUnified = (unified) => {
+    try {
+      return unified
+        .split('-')
+        .map((u) => String.fromCodePoint(parseInt(u, 16)))
+        .join('');
+    } catch (e) {
+      return '';
+    }
+  };
+
+  const normalizeMessage = (m) => {
+    return {
+      id: m.id ?? m.messageId ?? Date.now(),
+      content: m.content ?? m.message ?? m.text ?? '',
+      senderId: m.senderId ?? m.userId ?? m.from ?? null,
+      senderName: m.senderName ?? m.user ?? m.fromName ?? 'Unknown',
+      timestamp: m.timestamp ?? m.createdAt ?? null,
+      type: m.messageType ?? m.type ?? (m.fileName ? 'file' : 'TEXT'),
+      replyTo: m.replyTo
+        ? {
+            messageId: m.replyTo.messageId ?? m.replyTo.id,
+            senderName: m.replyTo.senderName ?? m.replyTo.user ?? 'Unknown',
+            content: m.replyTo.content ?? m.replyTo.message ?? '',
+          }
+        : null,
+      reactions: Array.isArray(m.reactions)
+        ? m.reactions
+        : Object.entries(m.reactions || {}).map(([emoji, users]) => ({ emoji, users })),
+    };
+  };
+
+  // Connect to WebSocket and load message history
+  useEffect(() => {
+    // Load message history
+    const token = sessionStorage.getItem("token");
+    
+    
+
+    const loadMessageHistory = async () => {
+      try {
+        const response = await fetch(
+          `http://localhost:8145/api/groups/${groupId}/messages`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          // Normalize messages
+          const normalized = Array.isArray(data) ? data.map(normalizeMessage) : [];
+          setMessages(normalized);
+        }
+      } catch (error) {
+        console.error('Error loading messages:', error);
+      }
+    };
+
+    let stomp = null;
+
+    // Connect to WebSocket
+    const connectWebSocket = () => {
+      try {
+        const socket = new SockJS('http://localhost:8145/ws');
+  stomp = Stomp.over(() => socket);
+
+  // Disable debug logs safely — stompjs expects a function
+  // setting to null causes `this.debug is not a function` errors
+  stomp.debug = () => {};
+
+        const headers = {
+          Authorization: `Bearer ${token}`
+        };
+
+        stomp.connect(
+          headers,
+          () => {
+            console.log('WebSocket Connected Successfully');
+            setConnectionError(null);
+            setStompClient(stomp);
+
+            // Subscribe to group chat topic
+            stomp.subscribe(`/topic/group/${groupId}`, (message) => {
+              try {
+                const receivedMessage = JSON.parse(message.body);
+                const messageData = normalizeMessage(receivedMessage);
+                setMessages(prevMessages => [...prevMessages, messageData]);
+              } catch (error) {
+                console.error('Error processing message:', error);
+              }
+            });
+
+            // Load message history after connection
+            loadMessageHistory();
+          },
+          (error) => {
+            console.error('WebSocket connection error:', error);
+            // Attempt to reconnect after 5 seconds
+            setTimeout(connectWebSocket, 5000);
+          }
+        );
+      } catch (error) {
+        console.error('Error creating WebSocket connection:', error);
+        // Attempt to reconnect after 5 seconds
+        setTimeout(connectWebSocket, 5000);
+      }
+    };
+
+    // Initial connection
+    connectWebSocket();
+
+    return () => {
+      if (stomp) {
+        try {
+          stomp.disconnect(() => {
+            console.log('WebSocket Connection Closed');
+            setStompClient(null);
+          });
+        } catch (error) {
+          console.error('Error disconnecting WebSocket:', error);
+        }
+      }
+    };
+  }, [groupId]);
 
   const messagesEndRef = useRef(null);
 
@@ -85,19 +222,42 @@ const GroupChat = ({ chatMessages = [] }) => {
 
   const handleSend = (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
-    setMessages([
-      ...messages,
-      {
-        id: Date.now(),
-        user: "You",
-        message: input,
-        replyTo: replyTo,
-      },
-    ]);
-    setInput("");
-    setReplyTo(null);
-    setShowEmoji(false);
+    if (!input.trim() || !stompClient) return;
+
+    // Ensure we have the currentUser available
+    if (!currentUser || !currentUser.id) {
+      console.error('Cannot send message: currentUser is not available yet');
+      setConnectionError('You must be signed in to send messages.');
+      return;
+    }
+
+    const token = sessionStorage.getItem("token");
+    const messageData = {
+      groupId: groupId,
+      senderId: currentUser.id,
+      senderName: currentUser.name || 'Unknown',
+      content: input,
+      messageType: 'TEXT',
+      replyTo: replyTo ? {
+        messageId: replyTo.id,
+        senderName: replyTo.user,
+        content: replyTo.message
+      } : null
+    };
+
+    try {
+      stompClient.send(
+        `/app/chat.sendMessage/${groupId}`,
+        { Authorization: `Bearer ${token}` },
+        JSON.stringify(messageData)
+      );
+      setInput("");
+      setReplyTo(null);
+      setShowEmoji(false);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setConnectionError('Failed to send message. Please try again.');
+    }
   };
 
   const handlePin = (id) => {
@@ -109,17 +269,93 @@ const GroupChat = ({ chatMessages = [] }) => {
 
   const handleUnpin = (id) => setPinned(pinned.filter((m) => m.id !== id));
   const handleDelete = (id) => setMessages(messages.filter((m) => m.id !== id));
-  const handleReply = (msg) => setReplyTo(msg);
+  const handleReply = (msg) => {
+    const replyData = {
+      id: msg.id,
+      user: msg.senderName || 'Unknown',
+      message: msg.content || msg.message,
+      originalMessage: msg
+    };
+    setReplyTo(replyData);
+  };
+
+  const scrollToMessage = (messageId) => {
+    const messageElement = document.getElementById(`message-${messageId}`);
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth' });
+      messageElement.classList.add('bg-yellow-50');
+      setTimeout(() => messageElement.classList.remove('bg-yellow-50'), 2000);
+    }
+  };
 
   const filteredMessages = search
     ? messages.filter(
         (m) =>
-          m.message?.toLowerCase().includes(search.toLowerCase()) ||
-          m.user?.toLowerCase().includes(search.toLowerCase())
+          m.content?.toLowerCase().includes(search.toLowerCase()) ||
+          m.senderName?.toLowerCase().includes(search.toLowerCase())
       )
     : messages;
 
-  const handleEmojiClick = (emojiObj) => setInput(input + emojiObj.emoji);
+  const handleEmojiClick = (emojiObj) => {
+    // emojiObj may have different shapes depending on version: {emoji}, {native}, or unified string
+    let ch = '';
+    if (!emojiObj) return;
+    if (typeof emojiObj === 'string') ch = emojiObj;
+    else ch = emojiObj.emoji ?? emojiObj.native ?? (emojiObj.unified ? decodeUnified(emojiObj.unified) : '');
+    setInput((prev) => prev + ch);
+  };
+
+  // Reaction handling: optimistic update + persist via REST
+  const commonEmojis = ['👍', '❤️', '😂', '🎉', '😮', '😢', '👏'];
+
+  const toggleReactionPicker = (messageId) => {
+    setOpenReactionPickerFor((prev) => (prev === messageId ? null : messageId));
+  };
+
+  const handleToggleReaction = async (messageId, emoji) => {
+    if (!currentUser) return;
+    const token = sessionStorage.getItem('token');
+
+    // Optimistic update
+    setMessages((prev) =>
+      prev.map((m) => {
+        if (m.id !== messageId) return m;
+        const existing = Array.isArray(m.reactions) ? [...m.reactions] : [];
+        const idx = existing.findIndex((r) => r.emoji === emoji);
+        if (idx === -1) {
+          // add reaction
+          existing.push({ emoji, users: [currentUser.name || currentUser.id] });
+        } else {
+          // toggle user in reaction
+          const users = existing[idx].users || [];
+          const has = users.includes(currentUser.name || currentUser.id);
+          existing[idx].users = has ? users.filter((u) => u !== (currentUser.name || currentUser.id)) : [...users, (currentUser.name || currentUser.id)];
+          if (existing[idx].users.length === 0) existing.splice(idx, 1);
+        }
+        return { ...m, reactions: existing };
+      })
+    );
+
+    // Persist to backend (assumes endpoints exist)
+    try {
+      // Check whether user already reacted (from the optimistic state)
+      const res = await fetch(`http://localhost:8145/api/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        // Try DELETE if POST not allowed (server may expect toggle semantics)
+        await fetch(`http://localhost:8145/api/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+    } catch (err) {
+      console.error('Failed to persist reaction', err);
+      // On failure, we could optionally refresh messages from server. For now, leave optimistic.
+    }
+  };
 
   const handleCreatePoll = (question, options) => {
     setPolls([
@@ -212,62 +448,129 @@ const GroupChat = ({ chatMessages = [] }) => {
             No messages yet. Start the conversation!
           </p>
         ) : (
-          filteredMessages.map((chat) => (
-            <div
-              key={chat.id}
-              className="p-3 bg-white shadow-sm rounded-lg max-w-[80%] border border-gray-200 flex flex-col relative group"
-            >
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-purple-700 text-sm">
-                  {chat.user}:
-                  {chat.type === "file" ? (
-                    <span className="ml-1 text-xs text-gray-600">(file)</span>
-                  ) : null}
-                </span>
-                <button
-                  className="ml-2 p-1 text-blue-500 hover:text-blue-700"
-                  onClick={() => handleReply(chat)}
-                >
-                  <IconReply />
-                </button>
-                <button
-                  className="ml-1 p-1 text-yellow-600 hover:text-yellow-800"
-                  onClick={() => handlePin(chat.id)}
-                >
-                  <IconPin />
-                </button>
-                <button
-                  className="ml-1 p-1 text-red-600 hover:text-red-800"
-                  onClick={() => handleDelete(chat.id)}
-                >
-                  <IconTrash />
-                </button>
-              </div>
-              {chat.replyTo && (
-                <div className="ml-3 pl-2 border-l-2 border-gray-300 text-xs text-gray-600 mb-1">
-                  Reply to <strong>{chat.replyTo.user}</strong>:{" "}
-                  {chat.replyTo.message}
+          filteredMessages.map((chat) => {
+            const isOwnMessage = chat.senderId === currentUser?.id;
+            return (
+              <div
+                key={chat.id}
+                id={`message-${chat.id}`}
+                className={`py-2 px-3 bg-white shadow-sm rounded-lg max-w-[60%] border border-gray-200 relative group transition-all ${
+                  isOwnMessage ? 'ml-auto bg-purple-50' : ''
+                }`}
+              >
+                <div className="flex flex-col">
+                  <span className="text-xs text-purple-700 mb-0.5">
+                    {isOwnMessage ? 'You' : chat.senderName || 'Unknown'}
+                    {chat.type === "file" ? (
+                      <span className="ml-1 text-gray-600">(file)</span>
+                    ) : null}
+                  </span>
+                  
+                  {/* Reply Reference */}
+                  {chat.replyTo && (
+                    <div 
+                      className="text-xs bg-gray-50 rounded p-1 mb-1 cursor-pointer hover:bg-gray-100"
+                      onClick={() => scrollToMessage(chat.replyTo.messageId)}
+                    >
+                      <div className="flex items-center gap-1">
+                        <IconReply className="w-3 h-3" />
+                        <span className="font-medium text-gray-600">{chat.replyTo.senderName}</span>
+                      </div>
+                      <div className="text-gray-500 truncate">{chat.replyTo.content}</div>
+                    </div>
+                  )}
+                  
+                  {/* Message Content */}
+                  <div className="text-gray-800 text-sm">
+                    {chat.type === "file" ? (
+                      <a
+                        href="#"
+                        className="text-purple-700 underline"
+                        download={chat.fileName}
+                        title={`Download ${chat.fileName}`}
+                      >
+                        📎 {chat.fileName}{" "}
+                        <span className="text-xs text-gray-400">
+                          ({chat.fileSize})
+                        </span>
+                      </a>
+                    ) : (
+                      chat.content
+                    )}
+                  </div>
+                  {/* Reactions display */}
+                  {chat.reactions && chat.reactions.length > 0 && (
+                    <div className="mt-1 flex gap-2 items-center">
+                      {chat.reactions.map((r) => (
+                        <button
+                          key={r.emoji}
+                          title={(r.users || []).join(', ')}
+                          className="text-sm bg-gray-100 px-2 py-0.5 rounded-full flex items-center gap-1"
+                          onClick={() => handleToggleReaction(chat.id, r.emoji)}
+                        >
+                          <span className="leading-none">{r.emoji}</span>
+                          <span className="text-xs text-gray-600">{(r.users || []).length}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-              <span className="text-gray-800">
-                {chat.type === "file" ? (
-                  <a
-                    href="#"
-                    className="text-purple-700 underline"
-                    download={chat.fileName}
-                    title={`Download ${chat.fileName}`}
+
+                {/* Action Buttons - Only visible on hover */}
+                <div className="absolute right-0 top-0 transform translate-x-full opacity-0 group-hover:opacity-100 flex items-center gap-1 pl-2">
+                  {/* Reaction picker toggle */}
+                  <div className="relative">
+                    <button
+                      className="p-1 text-xl leading-none bg-white rounded-full shadow-sm hover:shadow transition-all"
+                      onClick={() => toggleReactionPicker(chat.id)}
+                      title="React"
+                    >
+                      😊
+                    </button>
+                    {openReactionPickerFor === chat.id && (
+                      <div className="absolute right-0 mt-2 bg-white border rounded shadow p-1 flex gap-1 z-40">
+                        {commonEmojis.map((e) => (
+                          <button
+                            key={e}
+                            className="p-1 text-sm hover:bg-gray-100 rounded"
+                            onClick={() => { handleToggleReaction(chat.id, e); setOpenReactionPickerFor(null); }}
+                            title={`React ${e}`}
+                          >
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    className="p-1 text-blue-500 hover:text-blue-700 bg-white rounded-full shadow-sm hover:shadow transition-all"
+                    onClick={() => handleReply(chat)}
+                    title="Reply"
                   >
-                    📎 {chat.fileName}{" "}
-                    <span className="text-xs text-gray-400">
-                      ({chat.fileSize})
-                    </span>
-                  </a>
-                ) : (
-                  chat.message
-                )}
-              </span>
-            </div>
-          ))
+                    <IconReply className="w-4 h-4" />
+                  </button>
+                  {canPinMessage(chat) && (
+                    <button
+                      className="p-1 text-yellow-600 hover:text-yellow-800 bg-white rounded-full shadow-sm hover:shadow transition-all"
+                      onClick={() => handlePin(chat.id)}
+                      title="Pin message"
+                    >
+                      <IconPin className="w-4 h-4" />
+                    </button>
+                  )}
+                  {canDeleteMessage(chat) && (
+                    <button
+                      className="p-1 text-red-600 hover:text-red-800 bg-white rounded-full shadow-sm hover:shadow transition-all"
+                      onClick={() => handleDelete(chat.id)}
+                      title="Delete message"
+                    >
+                      <IconTrash className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
         )}
         <div ref={messagesEndRef} />
       </div>

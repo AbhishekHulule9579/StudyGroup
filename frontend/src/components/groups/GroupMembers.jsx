@@ -6,13 +6,13 @@ const GroupMembers = ({ members, ownerId }) => {
   }
   return (
     <div className="space-y-4 pr-2">
-      {members.map((member) => {
+  {members.map((member, idx) => {
         const role = member.role ? member.role.toUpperCase() : "MEMBER";
         const isOwner = role === "ADMIN";
         const displayName = member.name || "Unknown User";
         return (
           <div
-            key={member.userId}
+            key={member.userId ? member.userId : `member-${idx}`}
             className="flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <div className="flex items-center space-x-3">

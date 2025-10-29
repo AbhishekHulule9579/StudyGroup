@@ -27,6 +27,7 @@ export default function GroupDetailPage() {
   const [files, setFiles] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [pinnedMessages, setPinnedMessages] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
 
   // TOKEN UTILS
   const getUserIdFromToken = () => {
@@ -106,6 +107,27 @@ export default function GroupDetailPage() {
         { id: 401, user: "Admin", message: "Rule #1: Be respectful." },
         { id: 402, user: "Admin", message: "Midterm is next Friday!" },
       ]);
+
+      // Fetch current user profile and set into state so child components can use it
+      try {
+        const profileRes = await fetch(`http://localhost:8145/api/users/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          setCurrentUser(profileData);
+        } else {
+          // Fallback: set currentUser with id from token if profile endpoint fails
+          const idFromToken = getUserIdFromToken();
+          if (idFromToken) {
+            setCurrentUser({ id: idFromToken, name: "You" });
+          }
+        }
+      } catch (profileErr) {
+        const idFromToken = getUserIdFromToken();
+        if (idFromToken) setCurrentUser({ id: idFromToken, name: "You" });
+      }
+
     } catch (err) {
       setError(err.message);
     } finally {
@@ -349,7 +371,14 @@ export default function GroupDetailPage() {
             ownerId={group.createdBy?.userId}
           />
         )}
-        {activeTab === "chat" && <GroupChat chatMessages={chatMessages} />}
+        {activeTab === "chat" && (
+          <GroupChat 
+            groupId={groupId} 
+            currentUser={currentUser} 
+            userRole={userRole}
+            chatMessages={chatMessages}
+          />
+        )}
         {activeTab === "files" && <GroupFiles files={files} />}
         {activeTab === "contact" && <GroupContactAdmin />}
         {activeTab === "settings" && (

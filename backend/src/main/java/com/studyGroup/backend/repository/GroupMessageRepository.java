@@ -12,5 +12,5 @@ public interface GroupMessageRepository extends JpaRepository<GroupMessage, Long
      * Finds all messages for a given group, ordered by timestamp ascending.
      * This is the main method you'll use to load a chat history.
      */
-    List<GroupMessage> findByGroupIdOrderByTimestampAsc(Long groupId);
+    List<GroupMessage> findByGroup_GroupIdOrderByTimestampAsc(Long groupId);
 }

@@ -26,13 +26,14 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(Customizer.withDefaults())
-            // CRITICAL FIX: Ensure WebSocket endpoint is excluded from CSRF checks
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/ws/**").disable())
+            // Disable CSRF for API and SockJS endpoints (we use stateless JWT)
+            .csrf(csrf -> csrf.disable())
 
             .authorizeHttpRequests(auth -> auth
-                // CRITICAL FIX: Permit WebSocket endpoint explicitly to bypass filter chain interference
+                // Permit WebSocket handshake/info endpoints and app/topic used by STOMP/SockJS
                 .requestMatchers(
-                    "/ws-chat/**", // Permit all SockJS/WebSocket handshake traffic
+                    "/ws/**",
+                    "/ws/info/**",
                     "/topic/**",
                     "/app/**",
                     "/api/users/signin", 
@@ -40,7 +41,7 @@ public class SecurityConfig {
                     "/api/users/forgot-password/**",  
                     "/api/courses/**"
                 ).permitAll()
-                
+
                 .anyRequest().authenticated()
             )
             // Ensure sessions are stateless (required for JWT)
