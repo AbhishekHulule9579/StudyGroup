@@ -33,6 +33,9 @@ public class GroupMessage {
     @Column(name = "message_type", length = 10, nullable = false)
     private String messageType = "TEXT"; // Default to 'TEXT'
 
+    @Column(name = "poll_id")
+    private Long pollId;
+
     @Column(name = "timestamp", nullable = false, updatable = false)
     private LocalDateTime timestamp = LocalDateTime.now();
 

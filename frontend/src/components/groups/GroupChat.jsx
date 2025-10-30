@@ -139,22 +139,39 @@ const PinnedMessage = ({ msg, onUnpin }) => (
   </div>
 );
 
-const PollWidget = ({ poll, onVote }) => (
-  <div className="bg-white border-l-4 border-blue-500 px-4 py-3 my-3 rounded-xl shadow">
-    <div className="font-semibold text-blue-800 mb-2">{poll.question}</div>
-    <div className="flex flex-wrap gap-2">
-      {poll.options.map((opt, idx) => (
-        <button
-          key={poll.id + "-" + idx}
-          className="px-3 py-1 rounded-full bg-blue-100 text-blue-900 font-medium hover:bg-blue-200 transition shadow-sm"
-          onClick={() => onVote(poll.id, idx)}
-        >
-          {opt} ({poll.votes[idx] || 0})
-        </button>
-      ))}
+const PollWidget = ({ poll, onVote }) => {
+  // Support two shapes:
+  // - local: { id, question, options: [text], votes: [numbers] }
+  // - from server: { pollId, pollOptions: [{id, optionText, voteCount}] }
+  const serverOptions = poll.pollOptions;
+  return (
+    <div className="bg-white border-l-4 border-blue-500 px-4 py-3 my-3 rounded-xl shadow">
+      <div className="font-semibold text-blue-800 mb-2">{poll.question || poll.content}</div>
+      <div className="flex flex-col gap-2">
+        {serverOptions
+          ? serverOptions.map((opt) => (
+              <button
+                key={opt.id}
+                className="flex items-center justify-between w-full px-3 py-2 rounded bg-gray-50 hover:bg-gray-100"
+                onClick={() => onVote(poll.pollId || poll.id, opt.id)}
+              >
+                <span className="text-left">{opt.optionText}</span>
+                <span className="text-sm text-gray-600">{opt.voteCount || 0}</span>
+              </button>
+            ))
+          : (poll.options || []).map((opt, idx) => (
+              <button
+                key={(poll.id || poll.pollId) + "-" + idx}
+                className="px-3 py-1 rounded-full bg-blue-100 text-blue-900 font-medium hover:bg-blue-200 transition shadow-sm"
+                onClick={() => onVote(poll.id, idx)}
+              >
+                {opt} ({(poll.votes && poll.votes[idx]) || 0})
+              </button>
+            ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ----- MAIN COMPONENT -----
 const GroupChat = ({ groupId, currentUser, userRole }) => {
@@ -195,11 +212,18 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
     senderName: m.senderName ?? m.user ?? m.fromName ?? "Unknown",
     timestamp: m.timestamp ?? m.createdAt ?? Date.now(),
     type: m.messageType ?? m.type ?? (m.fileName ? "file" : "TEXT"),
+    // support reply info from backend (replyToMessageId / replyToContent / replyToSenderName)
     replyTo: m.replyTo
       ? {
           messageId: m.replyTo.messageId ?? m.replyTo.id,
           senderName: m.replyTo.senderName ?? m.replyTo.user ?? "Unknown",
           content: m.replyTo.content ?? m.replyTo.message ?? "",
+        }
+      : m.replyToMessageId
+      ? {
+          messageId: m.replyToMessageId,
+          senderName: m.replyToSenderName ?? "Unknown",
+          content: m.replyToContent ?? "",
         }
       : null,
     reactions: Array.isArray(m.reactions)
@@ -210,6 +234,11 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
         })),
     fileName: m.fileName || "",
     fileSize: m.fileSize || "",
+    // poll support - accept multiple server shapes
+    pollId: m.pollId ?? m.poll?.id ?? null,
+    // server may send poll options as `pollOptions`, or nested under `poll.options` or `poll.pollOptions`
+    pollOptions:
+      m.pollOptions ?? m.poll?.pollOptions ?? m.poll?.options ?? null,
   });
 
   useEffect(() => {
@@ -222,10 +251,23 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
         );
         if (response.ok) {
           const data = await response.json();
-          const normalized = Array.isArray(data)
-            ? data.map(normalizeMessage)
-            : [];
-          setMessages(normalized);
+          const normalized = Array.isArray(data) ? data.map(normalizeMessage) : [];
+          // Merge history with any messages already received via websocket to avoid
+          // losing broadcasts that arrived between subscribe() and history fetch.
+          setMessages((prev) => {
+            const map = new Map();
+            // include previous (real-time) messages first
+            for (const m of prev) {
+              if (m && (m.id ?? m.messageId)) map.set(m.id ?? m.messageId, m);
+            }
+            // then include history (overwrite/ensure canonical data from server)
+            for (const h of normalized) {
+              if (h && (h.id ?? h.messageId)) map.set(h.id ?? h.messageId, h);
+            }
+            // produce array sorted by timestamp so chat order is correct
+            const merged = Array.from(map.values()).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+            return merged;
+          });
         }
       } catch (error) {
         // ignore for now
@@ -246,8 +288,25 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
             stomp.subscribe(`/topic/group/${groupId}`, (message) => {
               try {
                 const receivedMessage = JSON.parse(message.body);
-                const messageData = normalizeMessage(receivedMessage);
-                setMessages((prevMessages) => [...prevMessages, messageData]);
+                    // handle poll vote update events
+                    if (receivedMessage && receivedMessage.messageType === "POLL_VOTE") {
+                      const pv = receivedMessage; // { pollId, optionId, voteCount }
+                      setMessages((prev) =>
+                        prev.map((m) => {
+                          if (m.pollId && m.pollId === pv.pollId) {
+                            const newOptions = (m.pollOptions || []).map((o) =>
+                              o.id === pv.optionId ? { ...o, voteCount: pv.voteCount } : o
+                            );
+                            return { ...m, pollOptions: newOptions };
+                          }
+                          return m;
+                        })
+                      );
+                      return;
+                    }
+
+                    const messageData = normalizeMessage(receivedMessage);
+                    setMessages((prevMessages) => [...prevMessages, messageData]);
               } catch {
                 // ignore
               }
@@ -325,13 +384,8 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
       senderName: currentUser.name || "Unknown",
       content: input,
       messageType: "TEXT",
-      replyTo: replyTo
-        ? {
-            messageId: replyTo.id,
-            senderName: replyTo.user,
-            content: replyTo.message,
-          }
-        : null,
+      // backend expects replyToMessageId for persistence
+      replyToMessageId: replyTo ? replyTo.id : null,
     };
     try {
       stompClient.send(
@@ -339,15 +393,6 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
         { Authorization: `Bearer ${token}` },
         JSON.stringify(messageData)
       );
-      // optimistic UI update (optional)
-      setMessages((prev) => [
-        ...prev,
-        {
-          ...normalizeMessage(messageData),
-          id: Date.now(),
-          timestamp: Date.now(),
-        },
-      ]);
       setInput("");
       setReplyTo(null);
       setShowEmoji(false);
@@ -365,7 +410,22 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
   const handleUnpin = (id) =>
     setPinned((prev) => prev.filter((m) => m.id !== id));
   const handleDelete = (id) =>
-    setMessages((prev) => prev.filter((m) => m.id !== id));
+    (async () => {
+      try {
+        const token = sessionStorage.getItem("token");
+        const res = await fetch(
+          `http://localhost:8145/api/groups/${groupId}/messages/${id}`,
+          { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (res.ok) {
+          setMessages((prev) => prev.filter((m) => m.id !== id));
+        } else {
+          console.error("Failed to delete message", await res.text());
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    })();
   const handleReply = (msg) => {
     setReplyTo({
       id: msg.id,
@@ -467,29 +527,62 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
 
   // Poll functions
   const handleCreatePoll = (question, optionsArr) => {
-    const poll = {
-      id: Date.now(),
-      question,
-      options: optionsArr,
-      votes: optionsArr.map(() => 0),
-    };
-    setPolls((prev) => [poll, ...prev]);
-    setShowPollForm(false);
+    (async () => {
+      try {
+        const token = sessionStorage.getItem("token");
+        const body = {
+          creatorId: currentUser?.id,
+          question,
+          options: optionsArr,
+        };
+        const res = await fetch(`http://localhost:8145/api/groups/${groupId}/polls`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          // server will broadcast poll to group via websocket; just close form locally
+          setShowPollForm(false);
+        } else {
+          console.error("Failed to create poll", await res.text());
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    })();
   };
 
   const handleVote = (pollId, optionIdx) => {
-    setPolls((prev) =>
-      prev.map((p) =>
-        p.id !== pollId
-          ? p
-          : {
-              ...p,
-              votes: p.votes.map((v, idx) => (idx === optionIdx ? v + 1 : v)),
-            }
-      )
-    );
-
-    // Optionally send vote to backend here
+    (async () => {
+      try {
+        const token = sessionStorage.getItem("token");
+        // optionIdx may be an index or an optionId depending on caller; if optionIdx is numeric > 0 and pollId refers to poll, we need optionId
+        // In our polling UI we call handleVote(pollId, optionId)
+        const optionId = optionIdx;
+        const res = await fetch(`http://localhost:8145/api/groups/polls/${pollId}/options/${optionId}/vote`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ voterId: currentUser?.id }),
+        });
+        if (res.ok) {
+          const updated = await res.json();
+          // Update local messages to reflect new vote count
+          setMessages((prev) =>
+            prev.map((m) => {
+              if (m.pollId && m.pollId === pollId) {
+                const newOptions = (m.pollOptions || []).map((o) => (o.id === updated.id ? { ...o, voteCount: updated.voteCount } : o));
+                return { ...m, pollOptions: newOptions };
+              }
+              return m;
+            })
+          );
+        } else {
+          console.error("Failed to vote", await res.text());
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    })();
   };
 
   const formatTimestamp = (ts) => {
@@ -499,6 +592,17 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
     } catch {
       return "";
     }
+  };
+
+  const getDayLabel = (dateObj) => {
+    const today = new Date();
+    const d = new Date(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
+    const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    const diff = Math.round((t - d) / (1000 * 60 * 60 * 24));
+    if (diff === 0) return "Today";
+    if (diff === 1) return "Yesterday";
+    return dateObj.toLocaleDateString();
   };
 
   // ------ UI -------
@@ -576,21 +680,39 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
               </p>
             </div>
           ) : (
-            messages.map((chat, idx) => {
-              const isOwn = chat.senderId === currentUser?.id;
-              const matched = getIsMatch(chat);
-              const isPinned = !!pinned.find((m) => m.id === chat.id);
-              return (
-                <div
-                  key={chat.id + "-" + idx}
-                  id={`message-${chat.id}`}
-                  className={`relative flex items-center group ${
-                    isOwn ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  {/* Bubble */}
+            (() => {
+              const elems = [];
+              let lastDay = null;
+              for (let idx = 0; idx < messages.length; idx++) {
+                const chat = messages[idx];
+                const msgDate = new Date(chat.timestamp);
+                const dayKey = msgDate.toDateString();
+                if (dayKey !== lastDay) {
+                  lastDay = dayKey;
+                  elems.push(
+                    <div
+                      key={`sep-${dayKey}`}
+                      className="text-center text-xs text-gray-400 my-3"
+                    >
+                      {getDayLabel(msgDate)}
+                    </div>
+                  );
+                }
+
+                const isOwn = chat.senderId === currentUser?.id;
+                const matched = getIsMatch(chat);
+                const isPinned = !!pinned.find((m) => m.id === chat.id);
+
+                elems.push(
                   <div
-                    className={`rounded-xl shadow-md px-4 py-3 min-w-[80px] break-words transition
+                    key={chat.id + "-" + idx}
+                    id={`message-${chat.id}`}
+                    className={`relative flex items-center group ${
+                      isOwn ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={`rounded-xl shadow-md px-4 py-3 min-w-[80px] break-words transition
                       ${
                         isPinned
                           ? "bg-blue-100 border-l-4 border-blue-500 text-gray-800"
@@ -600,90 +722,91 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
                       }
                       ${matched ? "ring-4 ring-blue-400 border-blue-500" : ""}
                     `}
-                    style={{ maxWidth: 340 }}
-                  >
-                    {!isOwn && !isPinned && (
-                      <span className="block text-xs font-bold text-blue-700 mb-1">
-                        {chat.senderName || "Unknown"}
-                      </span>
-                    )}
-
-                    {chat.replyTo && (
-                      <div
-                        className={`text-xs rounded p-2 mb-2 cursor-pointer ${
-                          isOwn
-                            ? "bg-white/20 hover:bg-white/30"
-                            : "bg-gray-100 hover:bg-gray-200"
-                        }`}
-                        onClick={() => scrollToMessage(chat.replyTo.messageId)}
-                      >
-                        <span
-                          className={`font-medium ${
-                            isOwn ? "text-white" : "text-blue-800"
-                          }`}
-                        >
-                          {chat.replyTo.senderName}
+                      style={{ maxWidth: 340 }}
+                    >
+                      {!isOwn && !isPinned && (
+                        <span className="block text-xs font-bold text-blue-700 mb-1">
+                          {chat.senderName || "Unknown"}
                         </span>
-                        <div
-                          className={`truncate ${
-                            isOwn ? "text-gray-200" : "text-gray-700"
-                          }`}
-                        >
-                          {chat.replyTo.content}
-                        </div>
-                      </div>
-                    )}
+                      )}
 
-                    <div className="text-base">{chat.content}</div>
+                      {chat.replyTo && (
+                        <div
+                          className={`text-xs rounded p-2 mb-2 cursor-pointer ${
+                            isOwn
+                              ? "bg-white/20 hover:bg-white/30"
+                              : "bg-gray-100 hover:bg-gray-200"
+                          }`}
+                          onClick={() => scrollToMessage(chat.replyTo.messageId)}
+                        >
+                          <span
+                            className={`font-medium ${
+                              isOwn ? "text-white" : "text-blue-800"
+                            }`}
+                          >
+                            {chat.replyTo.senderName}
+                          </span>
+                          <div
+                            className={`truncate ${
+                              isOwn ? "text-gray-200" : "text-gray-700"
+                            }`}
+                          >
+                            {chat.replyTo.content}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="text-base">{chat.content}</div>
+
+                      <div
+                        className={`text-[0.8em] mt-1 ${
+                          isOwn ? "text-blue-100" : "text-gray-500"
+                        }`}
+                      >
+                        {formatTimestamp(chat.timestamp)}
+                      </div>
+                    </div>
 
                     <div
-                      className={`text-[0.8em] mt-1 ${
-                        isOwn ? "text-blue-100" : "text-gray-500"
-                      }`}
-                    >
-                      {formatTimestamp(chat.timestamp)}
-                    </div>
-                  </div>
-
-                  {/* Hover actions: side row */}
-                  <div
-                    className={`
+                      className={`
                       absolute ${
                         isOwn ? "right-full mr-2" : "left-full ml-2"
                       } top-1/2 -translate-y-1/2
                       flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200
                       flex-row bg-white rounded-xl shadow border border-gray-200
                     `}
-                  >
-                    <button
-                      className="p-2 hover:bg-gray-100 rounded-xl"
-                      onClick={() => handleReply(chat)}
-                      title="Reply"
                     >
-                      <IconReply className="w-5 h-5 text-gray-500" />
-                    </button>
-                    {canPinMessage(chat) && (
                       <button
-                        className="p-2 hover:bg-blue-50 rounded-xl"
-                        onClick={() => handlePin(chat.id)}
-                        title="Pin"
+                        className="p-2 hover:bg-gray-100 rounded-xl"
+                        onClick={() => handleReply(chat)}
+                        title="Reply"
                       >
-                        <IconPin className="w-5 h-5 text-blue-500" />
+                        <IconReply className="w-5 h-5 text-gray-500" />
                       </button>
-                    )}
-                    {canDeleteMessage(chat) && (
-                      <button
-                        className="p-2 hover:bg-red-50 rounded-xl"
-                        onClick={() => handleDelete(chat.id)}
-                        title="Delete"
-                      >
-                        <IconTrash className="w-5 h-5 text-red-500" />
-                      </button>
-                    )}
+                      {canPinMessage(chat) && (
+                        <button
+                          className="p-2 hover:bg-blue-50 rounded-xl"
+                          onClick={() => handlePin(chat.id)}
+                          title="Pin"
+                        >
+                          <IconPin className="w-5 h-5 text-blue-500" />
+                        </button>
+                      )}
+                      {canDeleteMessage(chat) && (
+                        <button
+                          className="p-2 hover:bg-red-50 rounded-xl"
+                          onClick={() => handleDelete(chat.id)}
+                          title="Delete"
+                        >
+                          <IconTrash className="w-5 h-5 text-red-500" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              }
+              return elems;
+            })()
           )}
           <div ref={messagesEndRef} />
         </div>
