@@ -1,50 +1,162 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import SockJS from "sockjs-client";
 import { Stomp } from "@stomp/stompjs";
-import {
-  IconSend,
-  IconTrash,
-  IconPin,
-  IconReply,
-  IconPoll,
-  IconClip,
-  IconSearch,
-  IconEmoji,
-} from "./SvgIcons";
-import EmojiPicker from "emoji-picker-react"; // Make sure to install: npm i emoji-picker-react
+import EmojiPicker from "emoji-picker-react"; // npm i emoji-picker-react
 
+// ----- SVG ICONS (kept as you provided) -----
+const IconSend = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z" />
+  </svg>
+);
+const IconTrash = ({ className = "" }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" />
+  </svg>
+);
+const IconPin = ({ className = "" }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M21 10c0 1-1.6 3-3 3h-2v5l-4 4v-4H8v-5H6c-1.4 0-3-2-3-3s1.6-3 3-3h12c1.4 0 3 2 3 3Z" />
+    <path d="M9 21v-5M15 21v-5" />
+  </svg>
+);
+const IconReply = ({ className = "" }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <polyline points="9 17 4 12 9 7" />
+    <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+  </svg>
+);
+const IconPoll = ({ className = "" }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M16 17v-4M12 17v-8M8 17v-12" />
+    <rect width="20" height="16" x="2" y="3" rx="2" />
+  </svg>
+);
+const IconClip = ({ className = "" }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+  </svg>
+);
+const IconEmoji = ({ className = "" }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+    <line x1="9" x2="9.01" y1="9" y2="9" />
+    <line x1="15" x2="15.01" y1="9" y2="9" />
+  </svg>
+);
+// ----- END SVG ICONS -----
+
+// ----- SUB-COMPONENTS -----
 const PinnedMessage = ({ msg, onUnpin }) => (
-  <div className="bg-yellow-100 border-l-4 border-yellow-400 px-3 py-2 mb-3 text-sm flex items-center justify-between rounded">
+  <div className="bg-blue-50 border-l-4 border-blue-500 px-4 py-3 mb-3 text-sm flex items-center justify-between rounded-lg shadow-sm sticky top-0 z-20 backdrop-blur-sm">
     <span>
-      <strong className="text-purple-700">{msg.user}:</strong> {msg.message}
+      <strong className="text-blue-700">{msg.senderName || msg.user}:</strong>{" "}
+      {msg.content || msg.message}
     </span>
     <button
-      className="ml-3 text-xs text-yellow-700"
+      className="ml-3 text-xs font-semibold text-blue-700 hover:text-blue-900"
       onClick={() => onUnpin(msg.id)}
     >
-      Unpin
+      ✕ Unpin
     </button>
   </div>
 );
 
 const PollWidget = ({ poll, onVote }) => (
-  <div className="bg-blue-50 border-l-4 border-blue-400 px-4 py-2 my-2 rounded">
-    <div className="font-semibold text-blue-800">{poll.question}</div>
-    <ul>
+  <div className="bg-white border-l-4 border-blue-500 px-4 py-3 my-3 rounded-xl shadow">
+    <div className="font-semibold text-blue-800 mb-2">{poll.question}</div>
+    <div className="flex flex-wrap gap-2">
       {poll.options.map((opt, idx) => (
-        <li key={idx}>
-          <button
-            className="my-1 px-2 py-1 rounded bg-blue-100 text-blue-800"
-            onClick={() => onVote(poll.id, idx)}
-          >
-            {opt} ({poll.votes[idx] || 0})
-          </button>
-        </li>
+        <button
+          key={poll.id + "-" + idx}
+          className="px-3 py-1 rounded-full bg-blue-100 text-blue-900 font-medium hover:bg-blue-200 transition shadow-sm"
+          onClick={() => onVote(poll.id, idx)}
+        >
+          {opt} ({poll.votes[idx] || 0})
+        </button>
       ))}
-    </ul>
+    </div>
   </div>
 );
 
+// ----- MAIN COMPONENT -----
 const GroupChat = ({ groupId, currentUser, userRole }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -58,140 +170,107 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
   const [stompClient, setStompClient] = useState(null);
   const [connectionError, setConnectionError] = useState(null);
 
-  const isAdmin = userRole === 'admin';
-  const canPinMessage = (message) => isAdmin || message.senderId === currentUser?.id;
+  const messagesEndRef = useRef(null);
+  const isAdmin = userRole === "admin";
+  const canPinMessage = (message) =>
+    isAdmin || message.senderId === currentUser?.id;
   const canDeleteMessage = (message) => message.senderId === currentUser?.id;
-  const [openReactionPickerFor, setOpenReactionPickerFor] = useState(null);
 
-  // helper: decode unified string (e.g. "1F44D") -> emoji char(s)
+  // helpers
   const decodeUnified = (unified) => {
     try {
       return unified
-        .split('-')
+        .split("-")
         .map((u) => String.fromCodePoint(parseInt(u, 16)))
-        .join('');
-    } catch (e) {
-      return '';
+        .join("");
+    } catch {
+      return "";
     }
   };
 
-  const normalizeMessage = (m) => {
-    return {
-      id: m.id ?? m.messageId ?? Date.now(),
-      content: m.content ?? m.message ?? m.text ?? '',
-      senderId: m.senderId ?? m.userId ?? m.from ?? null,
-      senderName: m.senderName ?? m.user ?? m.fromName ?? 'Unknown',
-      timestamp: m.timestamp ?? m.createdAt ?? null,
-      type: m.messageType ?? m.type ?? (m.fileName ? 'file' : 'TEXT'),
-      replyTo: m.replyTo
-        ? {
-            messageId: m.replyTo.messageId ?? m.replyTo.id,
-            senderName: m.replyTo.senderName ?? m.replyTo.user ?? 'Unknown',
-            content: m.replyTo.content ?? m.replyTo.message ?? '',
-          }
-        : null,
-      reactions: Array.isArray(m.reactions)
-        ? m.reactions
-        : Object.entries(m.reactions || {}).map(([emoji, users]) => ({ emoji, users })),
-    };
-  };
+  const normalizeMessage = (m) => ({
+    id: m.id ?? m.messageId ?? Date.now(),
+    content: m.content ?? m.message ?? m.text ?? "",
+    senderId: m.senderId ?? m.userId ?? m.from ?? null,
+    senderName: m.senderName ?? m.user ?? m.fromName ?? "Unknown",
+    timestamp: m.timestamp ?? m.createdAt ?? Date.now(),
+    type: m.messageType ?? m.type ?? (m.fileName ? "file" : "TEXT"),
+    replyTo: m.replyTo
+      ? {
+          messageId: m.replyTo.messageId ?? m.replyTo.id,
+          senderName: m.replyTo.senderName ?? m.replyTo.user ?? "Unknown",
+          content: m.replyTo.content ?? m.replyTo.message ?? "",
+        }
+      : null,
+    reactions: Array.isArray(m.reactions)
+      ? m.reactions
+      : Object.entries(m.reactions || {}).map(([emoji, users]) => ({
+          emoji,
+          users,
+        })),
+    fileName: m.fileName || "",
+    fileSize: m.fileSize || "",
+  });
 
-  // Connect to WebSocket and load message history
   useEffect(() => {
-    // Load message history
     const token = sessionStorage.getItem("token");
-    
-    
-
     const loadMessageHistory = async () => {
       try {
         const response = await fetch(
           `http://localhost:8145/api/groups/${groupId}/messages`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
         if (response.ok) {
           const data = await response.json();
-          // Normalize messages
-          const normalized = Array.isArray(data) ? data.map(normalizeMessage) : [];
+          const normalized = Array.isArray(data)
+            ? data.map(normalizeMessage)
+            : [];
           setMessages(normalized);
         }
       } catch (error) {
-        console.error('Error loading messages:', error);
+        // ignore for now
       }
     };
 
     let stomp = null;
-
-    // Connect to WebSocket
     const connectWebSocket = () => {
       try {
-        const socket = new SockJS('http://localhost:8145/ws');
-  stomp = Stomp.over(() => socket);
-
-  // Disable debug logs safely — stompjs expects a function
-  // setting to null causes `this.debug is not a function` errors
-  stomp.debug = () => {};
-
-        const headers = {
-          Authorization: `Bearer ${token}`
-        };
-
+        const socket = new SockJS("http://localhost:8145/ws");
+        stomp = Stomp.over(() => socket);
+        stomp.debug = () => {};
         stomp.connect(
-          headers,
+          { Authorization: `Bearer ${token}` },
           () => {
-            console.log('WebSocket Connected Successfully');
             setConnectionError(null);
             setStompClient(stomp);
-
-            // Subscribe to group chat topic
             stomp.subscribe(`/topic/group/${groupId}`, (message) => {
               try {
                 const receivedMessage = JSON.parse(message.body);
                 const messageData = normalizeMessage(receivedMessage);
-                setMessages(prevMessages => [...prevMessages, messageData]);
-              } catch (error) {
-                console.error('Error processing message:', error);
+                setMessages((prevMessages) => [...prevMessages, messageData]);
+              } catch {
+                // ignore
               }
             });
-
-            // Load message history after connection
             loadMessageHistory();
           },
-          (error) => {
-            console.error('WebSocket connection error:', error);
-            // Attempt to reconnect after 5 seconds
-            setTimeout(connectWebSocket, 5000);
-          }
+          () => setTimeout(connectWebSocket, 5000)
         );
-      } catch (error) {
-        console.error('Error creating WebSocket connection:', error);
-        // Attempt to reconnect after 5 seconds
+      } catch {
         setTimeout(connectWebSocket, 5000);
       }
     };
 
-    // Initial connection
     connectWebSocket();
 
     return () => {
       if (stomp) {
         try {
-          stomp.disconnect(() => {
-            console.log('WebSocket Connection Closed');
-            setStompClient(null);
-          });
-        } catch (error) {
-          console.error('Error disconnecting WebSocket:', error);
-        }
+          stomp.disconnect(() => setStompClient(null));
+        } catch {}
       }
     };
   }, [groupId]);
-
-  const messagesEndRef = useRef(null);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -200,427 +279,475 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
   }, [messages, pinned]);
 
   const handleFileChange = (e) => {
-    if (e.target.files[0]) {
-      setUploadFile(e.target.files[0]);
-    }
+    if (e.target.files && e.target.files[0]) setUploadFile(e.target.files[0]);
   };
 
-  const handleSendFile = () => {
+  const handleSendFile = async () => {
     if (!uploadFile) return;
-    setMessages([
-      ...messages,
-      {
-        id: Date.now(),
-        user: "You",
-        type: "file",
-        fileName: uploadFile.name,
-        fileSize: `${(uploadFile.size / 1024).toFixed(2)} KB`,
-      },
-    ]);
+
+    // local UI preview
+    const fileMessage = {
+      id: Date.now(),
+      senderName: currentUser?.name || "You",
+      senderId: currentUser?.id || "You",
+      type: "file",
+      fileName: uploadFile.name,
+      fileSize: `${(uploadFile.size / 1024).toFixed(2)} KB`,
+      timestamp: Date.now(),
+    };
+    setMessages((prev) => [...prev, fileMessage]);
     setUploadFile(null);
+
+    // OPTIONAL: implement actual upload to backend here if you want
+    // const token = sessionStorage.getItem("token");
+    // const form = new FormData();
+    // form.append("file", uploadFile);
+    // try {
+    //   await fetch(`http://localhost:8145/api/groups/${groupId}/files`, {
+    //     method: "POST",
+    //     body: form,
+    //     headers: { Authorization: `Bearer ${token}` },
+    //   });
+    // } catch (err) {}
   };
 
   const handleSend = (e) => {
     e.preventDefault();
     if (!input.trim() || !stompClient) return;
-
-    // Ensure we have the currentUser available
     if (!currentUser || !currentUser.id) {
-      console.error('Cannot send message: currentUser is not available yet');
-      setConnectionError('You must be signed in to send messages.');
+      setConnectionError("You must be signed in to send messages.");
       return;
     }
-
     const token = sessionStorage.getItem("token");
     const messageData = {
-      groupId: groupId,
+      groupId,
       senderId: currentUser.id,
-      senderName: currentUser.name || 'Unknown',
+      senderName: currentUser.name || "Unknown",
       content: input,
-      messageType: 'TEXT',
-      replyTo: replyTo ? {
-        messageId: replyTo.id,
-        senderName: replyTo.user,
-        content: replyTo.message
-      } : null
+      messageType: "TEXT",
+      replyTo: replyTo
+        ? {
+            messageId: replyTo.id,
+            senderName: replyTo.user,
+            content: replyTo.message,
+          }
+        : null,
     };
-
     try {
       stompClient.send(
         `/app/chat.sendMessage/${groupId}`,
         { Authorization: `Bearer ${token}` },
         JSON.stringify(messageData)
       );
+      // optimistic UI update (optional)
+      setMessages((prev) => [
+        ...prev,
+        {
+          ...normalizeMessage(messageData),
+          id: Date.now(),
+          timestamp: Date.now(),
+        },
+      ]);
       setInput("");
       setReplyTo(null);
       setShowEmoji(false);
     } catch (error) {
-      console.error('Error sending message:', error);
-      setConnectionError('Failed to send message. Please try again.');
+      setConnectionError("Failed to send message. Please try again.");
     }
   };
 
   const handlePin = (id) => {
     const msgToPin = messages.find((m) => m.id === id);
     if (msgToPin && !pinned.find((m) => m.id === id)) {
-      setPinned([msgToPin, ...pinned]);
+      setPinned((prev) => [msgToPin, ...prev]);
     }
   };
-
-  const handleUnpin = (id) => setPinned(pinned.filter((m) => m.id !== id));
-  const handleDelete = (id) => setMessages(messages.filter((m) => m.id !== id));
+  const handleUnpin = (id) =>
+    setPinned((prev) => prev.filter((m) => m.id !== id));
+  const handleDelete = (id) =>
+    setMessages((prev) => prev.filter((m) => m.id !== id));
   const handleReply = (msg) => {
-    const replyData = {
+    setReplyTo({
       id: msg.id,
-      user: msg.senderName || 'Unknown',
+      user: msg.senderName || "Unknown",
       message: msg.content || msg.message,
-      originalMessage: msg
-    };
-    setReplyTo(replyData);
+      originalMessage: msg,
+    });
   };
 
   const scrollToMessage = (messageId) => {
     const messageElement = document.getElementById(`message-${messageId}`);
     if (messageElement) {
-      messageElement.scrollIntoView({ behavior: 'smooth' });
-      messageElement.classList.add('bg-yellow-50');
-      setTimeout(() => messageElement.classList.remove('bg-yellow-50'), 2000);
+      messageElement.scrollIntoView({ behavior: "smooth" });
+      messageElement.classList.add("bg-yellow-100");
+      setTimeout(() => messageElement.classList.remove("bg-yellow-100"), 2000);
     }
   };
 
-  const filteredMessages = search
-    ? messages.filter(
-        (m) =>
-          m.content?.toLowerCase().includes(search.toLowerCase()) ||
-          m.senderName?.toLowerCase().includes(search.toLowerCase())
-      )
-    : messages;
-
-  const handleEmojiClick = (emojiObj) => {
-    // emojiObj may have different shapes depending on version: {emoji}, {native}, or unified string
-    let ch = '';
-    if (!emojiObj) return;
-    if (typeof emojiObj === 'string') ch = emojiObj;
-    else ch = emojiObj.emoji ?? emojiObj.native ?? (emojiObj.unified ? decodeUnified(emojiObj.unified) : '');
-    setInput((prev) => prev + ch);
+  const getIsMatch = (msg) => {
+    if (!search) return false;
+    const s = search.toLowerCase();
+    return (
+      msg.content?.toLowerCase().includes(s) ||
+      msg.senderName?.toLowerCase().includes(s)
+    );
   };
 
-  // Reaction handling: optimistic update + persist via REST
-  const commonEmojis = ['👍', '❤️', '😂', '🎉', '😮', '😢', '👏'];
-
-  const toggleReactionPicker = (messageId) => {
+  // EMOJI + REACTION logic
+  const [openReactionPickerFor, setOpenReactionPickerFor] = useState(null);
+  const commonEmojis = ["👍", "❤️", "😂", "🎉", "😮", "😢", "👏"];
+  const toggleReactionPicker = (messageId) =>
     setOpenReactionPickerFor((prev) => (prev === messageId ? null : messageId));
-  };
 
   const handleToggleReaction = async (messageId, emoji) => {
     if (!currentUser) return;
-    const token = sessionStorage.getItem('token');
-
-    // Optimistic update
+    const token = sessionStorage.getItem("token");
     setMessages((prev) =>
       prev.map((m) => {
         if (m.id !== messageId) return m;
         const existing = Array.isArray(m.reactions) ? [...m.reactions] : [];
         const idx = existing.findIndex((r) => r.emoji === emoji);
         if (idx === -1) {
-          // add reaction
           existing.push({ emoji, users: [currentUser.name || currentUser.id] });
         } else {
-          // toggle user in reaction
           const users = existing[idx].users || [];
           const has = users.includes(currentUser.name || currentUser.id);
-          existing[idx].users = has ? users.filter((u) => u !== (currentUser.name || currentUser.id)) : [...users, (currentUser.name || currentUser.id)];
+          existing[idx].users = has
+            ? users.filter((u) => u !== (currentUser.name || currentUser.id))
+            : [...users, currentUser.name || currentUser.id];
           if (existing[idx].users.length === 0) existing.splice(idx, 1);
         }
         return { ...m, reactions: existing };
       })
     );
 
-    // Persist to backend (assumes endpoints exist)
     try {
-      // Check whether user already reacted (from the optimistic state)
-      const res = await fetch(`http://localhost:8145/api/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({}),
-      });
+      const res = await fetch(
+        `http://localhost:8145/api/messages/${messageId}/reactions/${encodeURIComponent(
+          emoji
+        )}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({}),
+        }
+      );
       if (!res.ok) {
-        // Try DELETE if POST not allowed (server may expect toggle semantics)
-        await fetch(`http://localhost:8145/api/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // revert on failure or call DELETE to cleanup (best-effort)
+        await fetch(
+          `http://localhost:8145/api/messages/${messageId}/reactions/${encodeURIComponent(
+            emoji
+          )}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
       }
     } catch (err) {
-      console.error('Failed to persist reaction', err);
-      // On failure, we could optionally refresh messages from server. For now, leave optimistic.
+      // ignore network errors
     }
   };
 
-  const handleCreatePoll = (question, options) => {
-    setPolls([
-      ...polls,
-      {
-        id: Date.now(),
-        question,
-        options,
-        votes: Array(options.length).fill(0),
-      },
-    ]);
+  const handleEmojiClick = (emojiObj, event) => {
+    // emoji-picker-react may pass different shapes; accept both
+    let ch = "";
+    if (!emojiObj) return;
+    if (typeof emojiObj === "string") ch = emojiObj;
+    else
+      ch =
+        emojiObj.emoji ??
+        emojiObj.native ??
+        (emojiObj.unified ? decodeUnified(emojiObj.unified) : "");
+    setInput((prev) => prev + ch);
+  };
+
+  // Poll functions
+  const handleCreatePoll = (question, optionsArr) => {
+    const poll = {
+      id: Date.now(),
+      question,
+      options: optionsArr,
+      votes: optionsArr.map(() => 0),
+    };
+    setPolls((prev) => [poll, ...prev]);
     setShowPollForm(false);
   };
 
   const handleVote = (pollId, optionIdx) => {
-    setPolls(
-      polls.map((poll) =>
-        poll.id === pollId
-          ? {
-              ...poll,
-              votes: poll.votes.map((v, i) => (i === optionIdx ? v + 1 : v)),
+    setPolls((prev) =>
+      prev.map((p) =>
+        p.id !== pollId
+          ? p
+          : {
+              ...p,
+              votes: p.votes.map((v, idx) => (idx === optionIdx ? v + 1 : v)),
             }
-          : poll
       )
     );
+
+    // Optionally send vote to backend here
   };
 
+  const formatTimestamp = (ts) => {
+    try {
+      const d = new Date(ts);
+      return d.toLocaleString();
+    } catch {
+      return "";
+    }
+  };
+
+  // ------ UI -------
   return (
-    <div className="flex-1 flex flex-col p-4 md:p-6 bg-white">
-      {/* Search + file/poll controls row */}
-      <div className="mb-3 flex items-center gap-2">
+    <div className="flex flex-col h-screen bg-gray-50">
+      {/* Header */}
+      <div
+        className="flex-none bg-white px-6 py-5 flex items-center border-b border-gray-200"
+        style={{ minHeight: 72 }}
+      >
+        <h2 className="text-2xl font-bold text-gray-800 mr-auto flex items-center gap-2">
+          💬 Group Chat
+        </h2>
         <input
           type="text"
-          className="flex-1 border rounded px-2 py-1"
+          placeholder="🔍 Search messages..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search message or user..."
+          className="px-3 py-1.5 text-base rounded-lg border border-gray-300 bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-64 shadow-sm"
         />
-        <label className="p-2 cursor-pointer">
-          <IconClip />
-          <input type="file" className="hidden" onChange={handleFileChange} />
-        </label>
-        <button className="p-2" onClick={() => setShowPollForm((v) => !v)}>
-          <IconPoll />
-        </button>
       </div>
-      {/* Emoji picker below form if open */}
+
+      {/* Emoji picker */}
       {showEmoji && (
-        <div className="mb-2 mt-2 z-30 relative">
-          <EmojiPicker
-            onEmojiClick={(_, emojiObj) => handleEmojiClick(emojiObj)}
-          />
+        <div className="mx-6 mt-2 mb-2 relative z-30">
+          <EmojiPicker onEmojiClick={handleEmojiClick} />
         </div>
       )}
+
       {/* File preview */}
       {uploadFile && (
-        <div className="mb-2 flex items-center gap-2 bg-gray-100 rounded px-2 py-1">
+        <div className="mx-6 mb-2 flex items-center gap-2 bg-blue-50 rounded px-2 py-1 text-blue-800">
           <span>{uploadFile.name}</span>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-gray-400">
             ({(uploadFile.size / 1024).toFixed(2)} KB)
           </span>
           <button
-            className="bg-purple-600 text-white px-3 py-1 rounded"
+            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
             onClick={handleSendFile}
           >
             Send file
           </button>
         </div>
       )}
-      {/* Poll form */}
+
+      {/* Poll Form */}
       {showPollForm && <PollForm onCreate={handleCreatePoll} />}
-      {/* Pinned messages */}
+
+      {/* Pinned Messages */}
       {pinned.length > 0 && (
-        <div>
-          <div className="text-xs font-bold text-yellow-700 mb-1">
-            📌 Pinned messages
-          </div>
+        <div className="mx-6 mt-2">
+          <div className="text-xs font-bold text-blue-700 mb-1">📌 Pinned</div>
           {pinned.map((msg) => (
             <PinnedMessage key={msg.id} msg={msg} onUnpin={handleUnpin} />
           ))}
         </div>
       )}
-      {/* Chat + polls */}
-      <div className="flex-grow space-y-3 overflow-y-auto mb-4 pr-2 p-3 bg-gray-50 rounded-lg">
-        {polls.map((poll) => (
-          <PollWidget key={poll.id} poll={poll} onVote={handleVote} />
-        ))}
-        {filteredMessages.length === 0 ? (
-          <p className="text-center text-gray-500 py-8">
-            No messages yet. Start the conversation!
-          </p>
-        ) : (
-          filteredMessages.map((chat) => {
-            const isOwnMessage = chat.senderId === currentUser?.id;
-            return (
-              <div
-                key={chat.id}
-                id={`message-${chat.id}`}
-                className={`py-2 px-3 bg-white shadow-sm rounded-lg max-w-[60%] border border-gray-200 relative group transition-all ${
-                  isOwnMessage ? 'ml-auto bg-purple-50' : ''
-                }`}
-              >
-                <div className="flex flex-col">
-                  <span className="text-xs text-purple-700 mb-0.5">
-                    {isOwnMessage ? 'You' : chat.senderName || 'Unknown'}
-                    {chat.type === "file" ? (
-                      <span className="ml-1 text-gray-600">(file)</span>
-                    ) : null}
-                  </span>
-                  
-                  {/* Reply Reference */}
-                  {chat.replyTo && (
-                    <div 
-                      className="text-xs bg-gray-50 rounded p-1 mb-1 cursor-pointer hover:bg-gray-100"
-                      onClick={() => scrollToMessage(chat.replyTo.messageId)}
-                    >
-                      <div className="flex items-center gap-1">
-                        <IconReply className="w-3 h-3" />
-                        <span className="font-medium text-gray-600">{chat.replyTo.senderName}</span>
-                      </div>
-                      <div className="text-gray-500 truncate">{chat.replyTo.content}</div>
-                    </div>
-                  )}
-                  
-                  {/* Message Content */}
-                  <div className="text-gray-800 text-sm">
-                    {chat.type === "file" ? (
-                      <a
-                        href="#"
-                        className="text-purple-700 underline"
-                        download={chat.fileName}
-                        title={`Download ${chat.fileName}`}
-                      >
-                        📎 {chat.fileName}{" "}
-                        <span className="text-xs text-gray-400">
-                          ({chat.fileSize})
-                        </span>
-                      </a>
-                    ) : (
-                      chat.content
-                    )}
-                  </div>
-                  {/* Reactions display */}
-                  {chat.reactions && chat.reactions.length > 0 && (
-                    <div className="mt-1 flex gap-2 items-center">
-                      {chat.reactions.map((r) => (
-                        <button
-                          key={r.emoji}
-                          title={(r.users || []).join(', ')}
-                          className="text-sm bg-gray-100 px-2 py-0.5 rounded-full flex items-center gap-1"
-                          onClick={() => handleToggleReaction(chat.id, r.emoji)}
-                        >
-                          <span className="leading-none">{r.emoji}</span>
-                          <span className="text-xs text-gray-600">{(r.users || []).length}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
 
-                {/* Action Buttons - Only visible on hover */}
-                <div className="absolute right-0 top-0 transform translate-x-full opacity-0 group-hover:opacity-100 flex items-center gap-1 pl-2">
-                  {/* Reaction picker toggle */}
-                  <div className="relative">
-                    <button
-                      className="p-1 text-xl leading-none bg-white rounded-full shadow-sm hover:shadow transition-all"
-                      onClick={() => toggleReactionPicker(chat.id)}
-                      title="React"
-                    >
-                      😊
-                    </button>
-                    {openReactionPickerFor === chat.id && (
-                      <div className="absolute right-0 mt-2 bg-white border rounded shadow p-1 flex gap-1 z-40">
-                        {commonEmojis.map((e) => (
-                          <button
-                            key={e}
-                            className="p-1 text-sm hover:bg-gray-100 rounded"
-                            onClick={() => { handleToggleReaction(chat.id, e); setOpenReactionPickerFor(null); }}
-                            title={`React ${e}`}
-                          >
-                            {e}
-                          </button>
-                        ))}
+      {/* Polls */}
+      {polls.length > 0 && (
+        <div className="mx-6 mt-2">
+          {polls.map((p) => (
+            <PollWidget key={p.id} poll={p} onVote={handleVote} />
+          ))}
+        </div>
+      )}
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex flex-col gap-3">
+          {messages.length === 0 ? (
+            <div className="flex items-center justify-center h-64">
+              <p className="text-center text-gray-400 italic text-xl">
+                No messages yet 💭
+              </p>
+            </div>
+          ) : (
+            messages.map((chat, idx) => {
+              const isOwn = chat.senderId === currentUser?.id;
+              const matched = getIsMatch(chat);
+              const isPinned = !!pinned.find((m) => m.id === chat.id);
+              return (
+                <div
+                  key={chat.id + "-" + idx}
+                  id={`message-${chat.id}`}
+                  className={`relative flex items-center group ${
+                    isOwn ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  {/* Bubble */}
+                  <div
+                    className={`rounded-xl shadow-md px-4 py-3 min-w-[80px] break-words transition
+                      ${
+                        isPinned
+                          ? "bg-blue-100 border-l-4 border-blue-500 text-gray-800"
+                          : isOwn
+                          ? "bg-blue-600 text-white"
+                          : "bg-white text-gray-800 border"
+                      }
+                      ${matched ? "ring-4 ring-blue-400 border-blue-500" : ""}
+                    `}
+                    style={{ maxWidth: 340 }}
+                  >
+                    {!isOwn && !isPinned && (
+                      <span className="block text-xs font-bold text-blue-700 mb-1">
+                        {chat.senderName || "Unknown"}
+                      </span>
+                    )}
+
+                    {chat.replyTo && (
+                      <div
+                        className={`text-xs rounded p-2 mb-2 cursor-pointer ${
+                          isOwn
+                            ? "bg-white/20 hover:bg-white/30"
+                            : "bg-gray-100 hover:bg-gray-200"
+                        }`}
+                        onClick={() => scrollToMessage(chat.replyTo.messageId)}
+                      >
+                        <span
+                          className={`font-medium ${
+                            isOwn ? "text-white" : "text-blue-800"
+                          }`}
+                        >
+                          {chat.replyTo.senderName}
+                        </span>
+                        <div
+                          className={`truncate ${
+                            isOwn ? "text-gray-200" : "text-gray-700"
+                          }`}
+                        >
+                          {chat.replyTo.content}
+                        </div>
                       </div>
                     )}
+
+                    <div className="text-base">{chat.content}</div>
+
+                    <div
+                      className={`text-[0.8em] mt-1 ${
+                        isOwn ? "text-blue-100" : "text-gray-500"
+                      }`}
+                    >
+                      {formatTimestamp(chat.timestamp)}
+                    </div>
                   </div>
-                  <button
-                    className="p-1 text-blue-500 hover:text-blue-700 bg-white rounded-full shadow-sm hover:shadow transition-all"
-                    onClick={() => handleReply(chat)}
-                    title="Reply"
+
+                  {/* Hover actions: side row */}
+                  <div
+                    className={`
+                      absolute ${
+                        isOwn ? "right-full mr-2" : "left-full ml-2"
+                      } top-1/2 -translate-y-1/2
+                      flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200
+                      flex-row bg-white rounded-xl shadow border border-gray-200
+                    `}
                   >
-                    <IconReply className="w-4 h-4" />
-                  </button>
-                  {canPinMessage(chat) && (
                     <button
-                      className="p-1 text-yellow-600 hover:text-yellow-800 bg-white rounded-full shadow-sm hover:shadow transition-all"
-                      onClick={() => handlePin(chat.id)}
-                      title="Pin message"
+                      className="p-2 hover:bg-gray-100 rounded-xl"
+                      onClick={() => handleReply(chat)}
+                      title="Reply"
                     >
-                      <IconPin className="w-4 h-4" />
+                      <IconReply className="w-5 h-5 text-gray-500" />
                     </button>
-                  )}
-                  {canDeleteMessage(chat) && (
-                    <button
-                      className="p-1 text-red-600 hover:text-red-800 bg-white rounded-full shadow-sm hover:shadow transition-all"
-                      onClick={() => handleDelete(chat.id)}
-                      title="Delete message"
-                    >
-                      <IconTrash className="w-4 h-4" />
-                    </button>
-                  )}
+                    {canPinMessage(chat) && (
+                      <button
+                        className="p-2 hover:bg-blue-50 rounded-xl"
+                        onClick={() => handlePin(chat.id)}
+                        title="Pin"
+                      >
+                        <IconPin className="w-5 h-5 text-blue-500" />
+                      </button>
+                    )}
+                    {canDeleteMessage(chat) && (
+                      <button
+                        className="p-2 hover:bg-red-50 rounded-xl"
+                        onClick={() => handleDelete(chat.id)}
+                        title="Delete"
+                      >
+                        <IconTrash className="w-5 h-5 text-red-500" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })
-        )}
-        <div ref={messagesEndRef} />
+              );
+            })
+          )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
-      {/* Replying bar */}
+
+      {/* Reply Bar */}
       {replyTo && (
-        <div className="mb-2 p-2 bg-gray-100 rounded flex items-center justify-between">
+        <div className="mx-6 mb-2 p-2 bg-blue-50 rounded flex items-center justify-between text-sm">
           <span>
-            Replying to <strong>{replyTo.user}</strong>: {replyTo.message}
+            Replying to{" "}
+            <strong className="text-blue-700">{replyTo.user}</strong>:{" "}
+            <span className="text-gray-700">{replyTo.message}</span>
           </span>
           <button
             onClick={() => setReplyTo(null)}
-            className="text-xs p-1 text-gray-500"
+            className="text-xs p-1 text-blue-700"
           >
-            Cancel reply
+            Cancel
           </button>
         </div>
       )}
-      {/* Message form, emoji button left of Send */}
-      <form className="flex gap-2 mt-1 items-center" onSubmit={handleSend}>
-        <input
-          type="text"
-          placeholder="Type your message..."
-          className="flex-grow p-3 border rounded-lg focus:ring-2 focus:ring-purple-400 transition"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-        />
-        <button
-          type="button"
-          className="px-2 py-2 rounded-lg border bg-white text-gray-700 hover:bg-gray-100 flex items-center"
-          onClick={() => setShowEmoji((v) => !v)}
-          aria-label="Open emoji picker"
-        >
-          <IconEmoji />
-        </button>
-        <button
-          type="submit"
-          className="px-6 py-3 rounded-lg bg-gradient-to-r from-purple-600 to-orange-500 text-white font-semibold shadow-md hover:opacity-90 transition flex items-center"
-        >
-          <IconSend />
-          <span className="ml-2">Send</span>
-        </button>
-      </form>
-      {/* EmojiPicker pops up below the input box if triggered - see above */}
-      {showEmoji && (
-        <div className="mb-2 mt-2 z-30 relative">
-          <EmojiPicker
-            onEmojiClick={(_, emojiObj) => handleEmojiClick(emojiObj)}
+
+      {/* Input Bar */}
+      <div className="flex-none bg-white border-t border-gray-200 px-6 py-4">
+        <form className="flex gap-2 items-center" onSubmit={handleSend}>
+          {/* moved buttons */}
+          <label className="p-2 cursor-pointer text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100">
+            <IconClip />
+            <input type="file" className="hidden" onChange={handleFileChange} />
+          </label>
+          <button
+            type="button"
+            className="p-2 text-gray-500 hover:text-blue-600 rounded-full hover:bg-gray-100"
+            onClick={() => setShowPollForm((v) => !v)}
+            title="Create Poll"
+          >
+            <IconPoll />
+          </button>
+
+          <input
+            type="text"
+            placeholder="Type a message..."
+            className="flex-1 px-4 py-2 bg-gray-100 rounded-full border border-gray-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-gray-900 placeholder:text-gray-500"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
           />
-        </div>
-      )}
+          <button
+            type="button"
+            className="p-2 rounded-full text-gray-500 hover:text-blue-600 hover:bg-gray-100 flex items-center"
+            onClick={() => setShowEmoji((v) => !v)}
+            aria-label="Open emoji picker"
+          >
+            <IconEmoji />
+          </button>
+          <button
+            type="submit"
+            className="px-5 py-2.5 rounded-full bg-blue-600 text-white font-semibold shadow-md hover:bg-blue-700 transition flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!input.trim()}
+          >
+            <IconSend />
+            <span className="ml-2 hidden sm:inline">Send</span>
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
@@ -628,9 +755,9 @@ const GroupChat = ({ groupId, currentUser, userRole }) => {
 function PollForm({ onCreate }) {
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", ""]);
-  const addOption = () => setOptions([...options, ""]);
+  const addOption = () => setOptions((prev) => [...prev, ""]);
   const updateOption = (i, val) =>
-    setOptions(options.map((opt, idx) => (idx === i ? val : opt)));
+    setOptions((opts) => opts.map((opt, idx) => (idx === i ? val : opt)));
   const submitPoll = (e) => {
     e.preventDefault();
     if (!question.trim() || options.filter((opt) => opt.trim()).length < 2)
@@ -643,34 +770,37 @@ function PollForm({ onCreate }) {
     setOptions(["", ""]);
   };
   return (
-    <form className="bg-blue-100 p-3 rounded mb-3" onSubmit={submitPoll}>
+    <form
+      className="bg-gray-100 p-3 rounded mb-3 mx-6 border border-gray-200"
+      onSubmit={submitPoll}
+    >
       <input
         type="text"
         placeholder="Poll Question"
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
-        className="w-full mb-2 px-2 py-1 border rounded"
+        className="w-full mb-2 px-2 py-1 border border-gray-300 rounded"
       />
       {options.map((opt, i) => (
         <input
           key={i}
           type="text"
           placeholder={`Option ${i + 1}`}
-          className="w-full mb-1 px-2 py-1 border rounded"
+          className="w-full mb-1 px-2 py-1 border border-gray-300 rounded"
           value={opt}
           onChange={(e) => updateOption(i, e.target.value)}
         />
       ))}
       <button
         type="button"
-        className="text-blue-800 mt-1 mb-1"
+        className="text-blue-600 mt-1 mb-1 text-sm font-medium"
         onClick={addOption}
       >
         + Add Option
       </button>
       <button
         type="submit"
-        className="block mt-2 px-3 py-1 bg-blue-600 text-white rounded"
+        className="block mt-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
       >
         Create Poll
       </button>
