@@ -7,8 +7,7 @@ import GroupFiles from "./GroupFiles";
 import GroupContactAdmin from "./GroupContactAdmin";
 import GroupSettings from "./GroupSettings";
 
-// --- MAIN GROUP DETAIL PAGE COMPONENT (Refactored for Modularization) ---
-export default function GroupDetailPage() {
+export default function GroupDetailPage({ openFloatingChat }) {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const token = sessionStorage.getItem("token");
@@ -20,10 +19,12 @@ export default function GroupDetailPage() {
   const [userRole, setUserRole] = useState("non-member");
   const [activeTab, setActiveTab] = useState("about");
 
-  // --- NEW: State for mobile sidebar visibility ---
+  // Mobile sidebar visibility
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // State for new/placeholder data
+  // NEW: Desktop sidebar collapse state
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   const [files, setFiles] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [pinnedMessages, setPinnedMessages] = useState([]);
@@ -108,16 +109,17 @@ export default function GroupDetailPage() {
         { id: 402, user: "Admin", message: "Midterm is next Friday!" },
       ]);
 
-      // Fetch current user profile and set into state so child components can use it
       try {
-        const profileRes = await fetch(`http://localhost:8145/api/users/profile`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const profileRes = await fetch(
+          `http://localhost:8145/api/users/profile`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         if (profileRes.ok) {
           const profileData = await profileRes.json();
           setCurrentUser(profileData);
         } else {
-          // Fallback: set currentUser with id from token if profile endpoint fails
           const idFromToken = getUserIdFromToken();
           if (idFromToken) {
             setCurrentUser({ id: idFromToken, name: "You" });
@@ -127,7 +129,6 @@ export default function GroupDetailPage() {
         const idFromToken = getUserIdFromToken();
         if (idFromToken) setCurrentUser({ id: idFromToken, name: "You" });
       }
-
     } catch (err) {
       setError(err.message);
     } finally {
@@ -259,9 +260,8 @@ export default function GroupDetailPage() {
     );
   }
 
-  // --- Main Render with Responsive 2-Column Layout ---
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-9vh)] bg-gray-50">
       {/* --- MOBILE SIDEBAR BACKDROP --- */}
       {isSidebarOpen && (
         <div
@@ -272,69 +272,129 @@ export default function GroupDetailPage() {
       )}
 
       {/* --- LEFT SIDEBAR --- */}
-      <aside
-        className={`
-          w-72 flex flex-col bg-gray-100 p-4 border-r border-gray-200 shadow-lg 
-          fixed lg:static inset-y-0 left-0 z-30 
-          transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
-          lg:translate-x-0 transition-transform duration-300 ease-in-out
-        `}
-      >
-        <div className="flex justify-between items-center mb-4">
-          <Link
-            to="/my-groups"
-            className="text-sm font-semibold text-purple-600 hover:underline"
-          >
-            &larr; Back to Groups
-          </Link>
-          {/* --- MOBILE CLOSE BUTTON --- */}
-          <button
-            onClick={() => setIsSidebarOpen(false)}
-            className="lg:hidden p-1 rounded-md text-gray-600 hover:bg-gray-200"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+      {!isSidebarCollapsed && (
+        <aside
+          className={`
+            w-72 flex flex-col bg-gray-100 p-4 border-r border-gray-200 shadow-lg 
+            fixed lg:static inset-y-0 left-0 z-30 
+            transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"} 
+            lg:translate-x-0 transition-transform duration-300 ease-in-out
+            overflow-y-auto
+          `}
+        >
+          <div className="flex justify-between items-center mb-4">
+            <Link
+              to="/my-groups"
+              className="text-sm font-semibold text-purple-600 hover:underline"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+              &larr; Back to Groups
+            </Link>
+            {/* MOBILE CLOSE BUTTON */}
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="lg:hidden p-1 rounded-md text-gray-600 hover:bg-gray-200"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+            {/* DESKTOP COLLAPSE BUTTON */}
+            <button
+              onClick={() => setIsSidebarCollapsed(true)}
+              className="hidden lg:block p-1 rounded-md text-gray-600 hover:bg-gray-200"
+              title="Collapse sidebar (Fullscreen chat)"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                />
+              </svg>
+            </button>
+          </div>
 
-        {/* Group Info at Top */}
-        <div className="mb-6 px-2">
-          <h1 className="text-2xl font-bold text-gray-800">{group.name}</h1>
-          <p className="text-md text-purple-600 font-semibold mt-1">
-            {group.associatedCourse?.courseName || "General"}
-          </p>
-        </div>
+          {/* Group Info at Top */}
+          <div className="mb-6 px-2">
+            <h1 className="text-2xl font-bold text-gray-800">{group.name}</h1>
+            <p className="text-md text-purple-600 font-semibold mt-1">
+              {group.associatedCourse?.courseName || "General"}
+            </p>
+          </div>
 
-        {/* Navigation Links */}
-        <nav className="flex-grow space-y-2">
-          <SidebarButton tabName="about" label="About" />
-          <SidebarButton tabName="chat" label="Chat" />
-          <SidebarButton
-            tabName="files"
-            label="Resources"
-            count={files.length}
-          />
-          <SidebarButton tabName="contact" label="Contact Admin" />
-          <SidebarButton tabName="settings" label="Settings" />
-        </nav>
-        <div className="mt-auto pt-4 border-t border-gray-200"></div>
-      </aside>
+          {/* Navigation Links */}
+          <nav className="flex-grow space-y-2">
+            <SidebarButton tabName="about" label="About" />
+            <SidebarButton tabName="chat" label="Chat" />
+            <SidebarButton
+              tabName="files"
+              label="Resources"
+              count={files.length}
+            />
+            <SidebarButton tabName="contact" label="Contact Admin" />
+            <SidebarButton tabName="settings" label="Settings" />
+          </nav>
+          <div className="mt-auto pt-4 border-t border-gray-200"></div>
+        </aside>
+      )}
+
+      {/* --- EXPAND BUTTON (When sidebar is collapsed) --- */}
+      {isSidebarCollapsed && (
+        <button
+          onClick={() => setIsSidebarCollapsed(false)}
+          className="hidden lg:flex fixed left-0 top-20 z-40
+           h-10 w-10 
+           items-center justify-center
+           bg-gradient-to-br from-[#4c1d95]/50 via-[#5b21b6]/50 to-[#3730a3]/50
+           backdrop-blur-xl
+           border border-purple-400/30
+           text-purple-200
+           rounded-r-xl
+           shadow-[0_0_12px_rgba(124,58,237,0.4)]
+           hover:from-[#7c3aed]/60 hover:via-[#6d28d9]/60 hover:to-[#2563eb]/60
+           hover:text-white
+           hover:shadow-[0_0_16px_rgba(124,58,237,0.6)]
+           transition-all duration-300 ease-in-out"
+          title="Show sidebar"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M13 5l7 7-7 7M5 5l7 7-7 7"
+            />
+          </svg>
+        </button>
+      )}
 
       {/* --- MAIN CONTENT AREA --- */}
       <main className="w-full flex-1 flex flex-col overflow-hidden">
-        {/* --- MOBILE HEADER --- */}
+        {/* MOBILE HEADER */}
         <div className="lg:hidden flex items-center justify-between p-4 bg-gray-100 border-b border-gray-200 shadow-sm">
           <button
             onClick={() => setIsSidebarOpen(true)}
@@ -362,7 +422,7 @@ export default function GroupDetailPage() {
           <div className="w-8"></div>
         </div>
 
-        {/* Render active tab (children are now imported modular files) */}
+        {/* Render active tab */}
         {activeTab === "about" && (
           <GroupAbout
             group={group}
@@ -372,11 +432,12 @@ export default function GroupDetailPage() {
           />
         )}
         {activeTab === "chat" && (
-          <GroupChat 
-            groupId={groupId} 
-            currentUser={currentUser} 
+          <GroupChat
+            groupId={groupId}
+            currentUser={currentUser}
             userRole={userRole}
             chatMessages={chatMessages}
+            openFloatingChat={openFloatingChat}
           />
         )}
         {activeTab === "files" && <GroupFiles files={files} />}

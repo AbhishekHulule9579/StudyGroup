@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Home from "./components/Home.jsx";
 import Nav from "./components/Nav.jsx";
 import Collab from "./components/Collab.jsx";
@@ -15,6 +15,8 @@ import FindPeers from "./components/FindPeers.jsx";
 import GroupDetailPage from "./components/groups/GroupDetailPage";
 import GroupManagementPage from "./components/groups/GroupManagementPage.jsx";
 import QuickNavButton from "./components/QuickActionButton.jsx";
+import FloatingChatWindow from "./components/FloatingChatWindow";
+import GroupChat from "./components/groups/GroupChat";
 
 import { Route, Routes, Navigate, useLocation } from "react-router-dom";
 
@@ -29,7 +31,6 @@ function Layout({ children }) {
   const location = useLocation();
   const hideOn = ["/login", "/signup", "/forgot-password"];
   const shouldHide = hideOn.includes(location.pathname);
-
   return (
     <>
       <Nav />
@@ -40,6 +41,23 @@ function Layout({ children }) {
 }
 
 const App = () => {
+  // Support multiple (array) floating chats
+  const [floatingChats, setFloatingChats] = useState([]);
+  // floatingChats: array of { id, ...chatProps }
+
+  const openFloatingChat = (chatProps) => {
+    setFloatingChats((prev) => {
+      // Avoid duplicate chat for same groupId
+      if (prev.find((c) => c.groupId === chatProps.groupId)) return prev;
+      // Use custom id if needed, here groupId
+      return [...prev, { ...chatProps, id: chatProps.groupId }];
+    });
+  };
+
+  const closeFloatingChat = (id) => {
+    setFloatingChats((chats) => chats.filter((chat) => chat.id !== id));
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Layout>
@@ -108,7 +126,7 @@ const App = () => {
             path="/group/:groupId"
             element={
               <ProtectedRoute>
-                <GroupDetailPage />
+                <GroupDetailPage openFloatingChat={openFloatingChat} />
               </ProtectedRoute>
             }
           />
@@ -117,6 +135,15 @@ const App = () => {
           <Route path="*" element={<h1>404: Page Not Found</h1>} />
         </Routes>
       </Layout>
+      {/* Render ALL open floating chat windows */}
+      {floatingChats.map((chat) => (
+        <FloatingChatWindow
+          key={chat.id}
+          onClose={() => closeFloatingChat(chat.id)}
+        >
+          <GroupChat {...chat} openFloatingChat={openFloatingChat} />
+        </FloatingChatWindow>
+      ))}
     </div>
   );
 };
