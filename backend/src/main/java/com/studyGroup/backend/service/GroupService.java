@@ -428,7 +428,7 @@ public class GroupService {
         if (!isAdmin) {
             throw new RuntimeException("You are not authorized to change member roles.");
         }
-        
+
         // 2. Cannot change role for yourself or the group creator
         if (currentUser.getId().equals(memberIdToUpdate.intValue())) {
              throw new RuntimeException("You cannot change your own role through this management tool.");
@@ -440,8 +440,21 @@ public class GroupService {
         // 3. Find and update the member's role
         GroupMember memberToUpdate = groupMemberRepository.findByGroupGroupIdAndUser_Id(groupId, memberIdToUpdate.intValue())
                 .orElseThrow(() -> new RuntimeException("Member not found in this group."));
-        
+
         memberToUpdate.setRole(newRole);
         groupMemberRepository.save(memberToUpdate);
+    }
+
+    public List<GroupDTO> findGroupsByUserIdAndCourseId(Integer userId, String courseId) {
+        List<GroupMember> memberships = groupMemberRepository.findByUserId(userId);
+        return memberships.stream()
+                .filter(membership -> membership.getGroup().getAssociatedCourse().getCourseId().equals(courseId))
+                .map(membership -> convertToDTO(membership.getGroup(), membership.getRole()))
+                .collect(Collectors.toList());
+    }
+
+    public String getUserRoleInGroup(Long groupId, User user) {
+        Optional<GroupMember> membership = getMembership(groupId, user);
+        return membership.map(GroupMember::getRole).orElse("non-member");
     }
 }

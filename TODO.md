@@ -1,5 +1,6 @@
-- Load pinned messages on component mount from backend API.
-- Update handleTogglePin to call pin/unpin API and update local state.
-- Add reply context display in message bubbles if replyToMessageId exists.
-- Modify pinned messages display: show one at a time, cycle on click, scroll to message.
-- Test all features.
+# TODO: Fix Email Notifications for Event Creation and Deletion
+
+## Steps to Complete:
+- [x] Modify sendEventCreationEmail method to send emails to all group members, including the creator
+- [x] Modify sendEventCancellationEmail method to send emails to all group members, including the canceller
+- [ ] Test the changes by creating and deleting an event to verify emails are sent to all group members

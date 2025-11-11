@@ -7,6 +7,8 @@ import GroupFiles from "./GroupFiles";
 import GroupContactAdmin from "./GroupContactAdmin";
 import GroupSettings from "./GroupSettings";
 
+import SectionsPage from "../Calendar/SectionsPage";
+
 export default function GroupDetailPage({ openFloatingChat }) {
   const { groupId } = useParams();
   const navigate = useNavigate();
@@ -26,6 +28,7 @@ export default function GroupDetailPage({ openFloatingChat }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const [files, setFiles] = useState([]);
+  const [documentCount, setDocumentCount] = useState(0);
   const [chatMessages, setChatMessages] = useState([]);
   const [pinnedMessages, setPinnedMessages] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -261,7 +264,7 @@ export default function GroupDetailPage({ openFloatingChat }) {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-9vh)] bg-gray-50">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50">
       {/* --- MOBILE SIDEBAR BACKDROP --- */}
       {isSidebarOpen && (
         <div
@@ -347,8 +350,9 @@ export default function GroupDetailPage({ openFloatingChat }) {
             <SidebarButton
               tabName="files"
               label="Resources"
-              count={files.length}
+              count={documentCount}
             />
+            <SidebarButton tabName="sections" label="Group Session" />
             <SidebarButton tabName="contact" label="Contact Admin" />
             <SidebarButton tabName="settings" label="Settings" />
           </nav>
@@ -393,7 +397,7 @@ export default function GroupDetailPage({ openFloatingChat }) {
       )}
 
       {/* --- MAIN CONTENT AREA --- */}
-      <main className="w-full flex-1 flex flex-col overflow-hidden">
+      <main className="w-full flex-1 flex flex-col overflow-y-auto overflow-x-hidden">
         {/* MOBILE HEADER */}
         <div className="lg:hidden flex items-center justify-between p-4 bg-gray-100 border-b border-gray-200 shadow-sm">
           <button
@@ -421,7 +425,6 @@ export default function GroupDetailPage({ openFloatingChat }) {
           </h1>
           <div className="w-8"></div>
         </div>
-
         {/* Render active tab */}
         {activeTab === "about" && (
           <GroupAbout
@@ -440,7 +443,20 @@ export default function GroupDetailPage({ openFloatingChat }) {
             openFloatingChat={openFloatingChat}
           />
         )}
-        {activeTab === "files" && <GroupFiles files={files} />}
+        {activeTab === "files" && (
+          <GroupFiles
+            groupId={groupId}
+            userRole={userRole}
+            onDocumentCountChange={setDocumentCount}
+          />
+        )}
+        {activeTab === "sections" && (
+          <SectionsPage
+            groupId={groupId}
+            userRole={userRole}
+            currentUser={currentUser}
+          />
+        )}
         {activeTab === "contact" && <GroupContactAdmin />}
         {activeTab === "settings" && (
           <GroupSettings
