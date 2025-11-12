@@ -13,6 +13,30 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [userName, setUserName] = useState("User");
 
+  const demoNotifications = [
+    {
+      id: 1,
+      icon: "✅",
+      message: "Assignment submitted successfully.",
+      timeAgo: "2h ago",
+      isRead: false,
+    },
+    {
+      id: 2,
+      icon: "💡",
+      message: "New update in Group Project discussion.",
+      timeAgo: "5h ago",
+      isRead: true,
+    },
+    {
+      id: 3,
+      icon: "⚠️",
+      message: "Course registration deadline is tomorrow.",
+      timeAgo: "1d ago",
+      isRead: false,
+    },
+  ];
+
   const handleLogout = useCallback(() => {
     sessionStorage.removeItem("token");
     navigate("/login");
@@ -25,24 +49,23 @@ export default function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const endpoints = [
-          "dashboard",
-          "users/profile",
-          "notifications/recent",
-          "calendar/upcoming",
-        ];
-
         const fetchWithAuth = (endpoint) =>
           fetch(`http://localhost:8145/api/${endpoint}`, {
             headers: { Authorization: `Bearer ${token}` },
           }).then((res) => (res.ok ? res.json() : null));
 
-        const [dashboard, user, notifications, calendar] = await Promise.all(
-          endpoints.map(fetchWithAuth)
-        );
+        // Fetch user first to get userId
+        const user = await fetchWithAuth("users/profile");
+        if (!user) throw new Error("Session expired. Please log in again.");
 
-        if (!dashboard || !user)
-          throw new Error("Session expired. Please log in again.");
+        // Now fetch others in parallel
+        const [dashboard, notifications, calendar] = await Promise.all([
+          fetchWithAuth("dashboard"),
+          fetchWithAuth(`notifications/user/${user.id}`),
+          fetchWithAuth("calendar/upcoming"),
+        ]);
+
+        if (!dashboard) throw new Error("Failed to load dashboard data.");
 
         setData({
           dashboard,
@@ -65,7 +88,10 @@ export default function Dashboard() {
   if (loading) return <CenteredMessage text="Loading Dashboard..." />;
   if (error) return <CenteredMessage text={`Error: ${error}`} error />;
 
+  // 💡 Make sure to destructure AFTER loading/error check
   const { dashboard, notifications, calendar } = data;
+  const notificationsToShow =
+    notifications.length > 0 ? notifications : demoNotifications;
 
   return (
     <div className="min-h-screen bg-purple-50/50 p-4 sm:p-8">
@@ -113,7 +139,7 @@ export default function Dashboard() {
           {/* Main Area */}
           <div className="lg:col-span-3 space-y-10">
             <GroupSection groups={dashboard?.joinedGroups ?? []} />
-            <NotificationSection notifications={notifications} />
+            <NotificationSection notifications={notificationsToShow} />
             <CalendarSection calendar={calendar} />
           </div>
         </div>
@@ -228,7 +254,6 @@ const SectionTitle = ({ title }) => (
   <h2 className="text-2xl font-bold text-gray-700 mb-4">{title}</h2>
 );
 
-// 🟣 Scrollable "My Study Groups" Section
 const GroupSection = ({ groups }) => (
   <SectionWrapper title="My Study Groups">
     {groups.length > 0 ? (
