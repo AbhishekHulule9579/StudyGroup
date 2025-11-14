@@ -1,0 +1,33 @@
+services:
+  db:
+    image: mysql:latest
+    container_name: mysql_latest
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: study_groupdb
+    ports:
+      - "3307:3306"
+
+  backend:
+    build: ./backend
+    container_name: studygroup_backend
+    restart: always
+    depends_on:
+      - db
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      jwt.secret: ThisIsAVeryLongSecretKeyForJWT123456789
+      jwt.expiration.ms: "86400000"
+      jwt.expiration: "86400000"
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    container_name: studygroup_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"

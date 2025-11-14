@@ -73,7 +73,7 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch("http://localhost:8145/api/users/signin", {
+      const res = await fetch("/api/users/signin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

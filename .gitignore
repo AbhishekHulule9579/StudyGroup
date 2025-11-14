@@ -1,31 +1,39 @@
-# ----------------------------
-# Spring Boot (Backend folders)
-# ----------------------------
-/backend/target/
-/demo/target/
-*.class
-*.jar
-*.war
-*.log
+# Dependency directories
+node_modules/
+frontend/node_modules/
 
-# ----------------------------
-# React (Frontend)
-# ----------------------------
-/frontend/node_modules/
-/frontend/build/
+# Build output
+dist/
+frontend/dist/
+backend/target/
+target/
 
-# ----------------------------
-# VS Code
-# ----------------------------
+# IDE and editor directories
+.idea/
 .vscode/
+*.iml
 
-# ----------------------------
-# System files
-# ----------------------------
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+
+# Sensitive configuration files
+# IMPORTANT: This file contains secrets and should not be in version control.
+backend/src/main/resources/application-docker.properties
+
+# Uploaded files directory
+document-storage/
+
+# OS-specific files
 .DS_Store
 Thumbs.db
 
-
-### Creating separate application-local.properties ###
-src/main/resources/application-local.properties
-
+# Gemini CLI state
+.qodo/
