@@ -10,6 +10,7 @@ import {
   deleteSelectedNotifications,
   deleteAllRead,
 } from "../services/NotificationService";
+import apiClient from "../api"; // Import the apiClient
 
 const tabs = ["All", "Invites", "Reminders", "Updates"];
 
@@ -57,7 +58,8 @@ export default function NotificationsPage({
     const token = sessionStorage.getItem("token");
     let stomp = null;
     try {
-      const socket = new SockJS("http://localhost:8145/ws");
+      // Use the apiClient's baseURL for the WebSocket connection
+      const socket = new SockJS(`${apiClient.defaults.baseURL}/ws`);
       stomp = Stomp.over(() => socket);
       stomp.debug = () => {};
       stomp.connect(

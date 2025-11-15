@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import apiClient from "../api"; // Import the apiClient
 
 // --- Icon Map ---
 const iconMap = {
@@ -67,14 +68,12 @@ function Home() {
     const fetchCourses = async () => {
         try {
             setLoading(true);
-            const res = await fetch('http://localhost:8145/api/courses');
-            if (!res.ok) {
-                throw new Error("Could not fetch courses. Please try again later.");
-            }
-            const data = await res.json();
+            // Use apiClient to make the request
+            const response = await apiClient.get('/api/courses');
+            const data = response.data;
             setCourses(data);
         } catch (err) {
-            setError(err.message);
+            setError(err.response?.data?.message || "Could not fetch courses. Please try again later.");
         } finally {
             setLoading(false);
         }
@@ -155,4 +154,3 @@ function Home() {
 }
 
 export default Home;
-

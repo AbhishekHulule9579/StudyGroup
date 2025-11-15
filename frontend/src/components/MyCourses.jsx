@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom"; // Import Link here
+import apiClient from "../api"; // Import the apiClient
 
 // --- Reimagined Course Card Component ---
 function CourseCard({ course, isEnrolled, onEnrollmentChange }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const token = sessionStorage.getItem("token");
 
   // This single function handles both enroll and unenroll
   const handleAction = async (action) => {
@@ -12,17 +12,14 @@ function CourseCard({ course, isEnrolled, onEnrollmentChange }) {
     setIsSubmitting(true);
     const endpoint =
       action === "enroll"
-        ? `http://localhost:8145/api/profile/enroll/${course.courseId}`
-        : `http://localhost:8145/api/profile/unenroll/${course.courseId}`;
+        ? `/api/profile/enroll/${course.courseId}`
+        : `/api/profile/unenroll/${course.courseId}`;
 
     const method = action === "enroll" ? "POST" : "DELETE";
 
     try {
-      const res = await fetch(endpoint, {
-        method,
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`${action}ment failed.`);
+      // Use apiClient for the request
+      await apiClient({ method, url: endpoint });
       onEnrollmentChange(); // Refresh the main list
     } catch (err) {
       console.error(err);
@@ -113,21 +110,14 @@ const MyCourses = () => {
     setLoading(true);
     setError("");
     try {
+      // Use apiClient for parallel requests
       const [coursesRes, profileRes] = await Promise.all([
-        fetch("http://localhost:8145/api/courses", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch("http://localhost:8145/api/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        apiClient.get("/api/courses"),
+        apiClient.get("/api/profile"),
       ]);
 
-      if (!coursesRes.ok || !profileRes.ok) {
-        throw new Error("Failed to load data. Your session may have expired.");
-      }
-
-      const coursesData = await coursesRes.json();
-      const profileData = await profileRes.json();
+      const coursesData = coursesRes.data;
+      const profileData = profileRes.data;
 
       setAllCourses(coursesData);
 

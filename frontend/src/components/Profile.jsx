@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import apiClient from "../api"; // Import the apiClient
 
 // A reusable input component with a label and disabled state
 function LabeledInput({
@@ -78,25 +79,16 @@ export default function Profile() {
       }
 
       try {
+        // Use apiClient for parallel requests
         const [userRes, profileRes] = await Promise.all([
-          fetch("http://localhost:8145/api/users/profile", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch("http://localhost:8145/api/profile", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+          apiClient.get("/api/users/profile"),
+          apiClient.get("/api/profile"),
         ]);
 
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          setUser(userData);
-        } else {
-          // If user fetch fails, assume session is invalid
-          throw new Error("Session expired. Please log in again.");
-        }
+        setUser(userRes.data);
 
-        if (profileRes.ok) {
-          const profileData = await profileRes.json();
+        if (profileRes.data) {
+          const profileData = profileRes.data;
           // CORRECTED: Explicitly map 'aboutMe' from the API response
           setProfile({
             ...profileData,
@@ -157,46 +149,14 @@ export default function Profile() {
 
     try {
       // 1. Update User Details (Fullname and Academic History)
-      const userUpdateRes = await fetch(
-        "http://localhost:8145/api/users/profile",
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(user),
-        }
-      );
+      const userUpdateRes = await apiClient.put("/api/users/profile", user);
 
       // 2. Update Profile Details (Pic, Phone, Socials, AboutMe)
-      const profileUpdateRes = await fetch(
-        "http://localhost:8145/api/profile",
-        {
-          method: "POST", // Using POST as per your controller, which acts as a PUT/Merge
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(profileToSave),
-        }
-      );
-
-      if (!userUpdateRes.ok || !profileUpdateRes.ok) {
-        const userError = !userUpdateRes.ok ? await userUpdateRes.text() : "";
-        const profileError = !profileUpdateRes.ok
-          ? await profileUpdateRes.text()
-          : "";
-        throw new Error(
-          `Failed to save changes. User Update Error: ${
-            userError || "N/A"
-          }. Profile Update Error: ${profileError || "N/A"}.`
-        );
-      }
+      const profileUpdateRes = await apiClient.post("/api/profile", profileToSave);
 
       // Re-fetch the profile data to ensure local state reflects the backend saved data
       // (especially helpful if the backend performs any formatting or sanitization)
-      const updatedProfileData = await profileUpdateRes.json();
+      const updatedProfileData = profileUpdateRes.data;
       setProfile({
         ...updatedProfileData,
         aboutMe: updatedProfileData.aboutMe || "",
@@ -208,7 +168,10 @@ export default function Profile() {
       setTimeout(() => setError(""), 3000); // Clear message after 3 seconds
     } catch (err) {
       console.error("Save error:", err);
-      setError(err.message);
+      const userError = err.response?.data?.userUpdateError || "N/A";
+      const profileError = err.response?.data?.profileUpdateError || "N/A";
+      const genericError = err.response?.data?.message || err.message;
+      setError(`Failed to save. User: ${userError}. Profile: ${profileError}. Details: ${genericError}`);
     }
     setSaving(false);
   };
@@ -230,21 +193,11 @@ export default function Profile() {
     setPasswordSuccess("");
     const token = sessionStorage.getItem("token");
     try {
-      const res = await fetch(
-        "http://localhost:8145/api/users/verify-password",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            currentPassword: passwordData.currentPassword,
-          }),
-        }
-      );
-      const data = await res.json();
-      if (res.ok) {
+      const response = await apiClient.post("/api/users/verify-password", {
+        currentPassword: passwordData.currentPassword,
+      });
+      const data = response.data;
+      if (response.status === 200) {
         setIsCurrentPasswordVerified(true);
         setPasswordSuccess(data.message);
       } else {
@@ -271,19 +224,11 @@ export default function Profile() {
     setPasswordSuccess("");
     const token = sessionStorage.getItem("token");
     try {
-      const res = await fetch(
-        "http://localhost:8145/api/users/change-password",
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ newPassword: passwordData.newPassword }),
-        }
-      );
-      const data = await res.json();
-      if (res.ok) {
+      const response = await apiClient.put("/api/users/change-password", {
+        newPassword: passwordData.newPassword,
+      });
+      const data = response.data;
+      if (response.status === 200) {
         setPasswordSuccess(data.message);
         setTimeout(() => {
           setPasswordData({ currentPassword: "", newPassword: "" });

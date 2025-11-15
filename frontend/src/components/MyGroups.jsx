@@ -4,6 +4,7 @@ import CreateGroupCard from "./groups/CreateGroupCard.jsx";
 import GroupCreateForm from "./groups/GroupCreateForm.jsx";
 import JoinGroupModal from "./groups/JoinGroupModal.jsx";
 import { useNavigate } from "react-router-dom";
+import apiClient from "../api"; // Import the apiClient
 
 const MyGroups = () => {
   const navigate = useNavigate();
@@ -31,25 +32,17 @@ const MyGroups = () => {
     setLoading(true);
     setError("");
     try {
+      // Use apiClient for parallel requests
       const [myGroupsRes, allGroupsRes, coursesRes] = await Promise.all([
-        fetch("http://localhost:8145/api/groups/my-groups", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch("http://localhost:8145/api/groups/all", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch("http://localhost:8145/api/courses", {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        apiClient.get("/api/groups/my-groups"),
+        apiClient.get("/api/groups/all"),
+        apiClient.get("/api/courses"),
       ]);
-      if (!myGroupsRes.ok || !allGroupsRes.ok || !coursesRes.ok) {
-        throw new Error(
-          "Failed to load group data. Please try logging in again."
-        );
-      }
-      const myGroupsData = await myGroupsRes.json();
-      const allGroupsData = await allGroupsRes.json();
-      const coursesData = await coursesRes.json();
+
+      const myGroupsData = myGroupsRes.data;
+      const allGroupsData = allGroupsRes.data;
+      const coursesData = coursesRes.data;
+
       setMyGroups(myGroupsData);
       setAllGroups(allGroupsData);
       setCourses(coursesData);
@@ -65,17 +58,9 @@ const MyGroups = () => {
   }, [fetchAllData]);
 
   const handleCreateGroup = async (newGroupData) => {
-    const token = sessionStorage.getItem("token");
     try {
-      const res = await fetch("http://localhost:8145/api/groups/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newGroupData),
-      });
-      if (!res.ok) throw new Error("Failed to create group.");
+      // Use apiClient for the request
+      await apiClient.post("/api/groups/create", newGroupData);
       await fetchAllData();
       setShowCreateForm(false);
     } catch (err) {
@@ -99,23 +84,13 @@ const MyGroups = () => {
 
   const handleJoinAction = async (group, passkey = null) => {
     setJoiningGroupId(group.groupId);
-    const token = sessionStorage.getItem("token");
     try {
-      const res = await fetch(
-        `http://localhost:8145/api/groups/join/${group.groupId}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ passkey }),
-        }
+      // Use apiClient for the request
+      await apiClient.post(
+        `/api/groups/join/${group.groupId}`,
+        { passkey }
       );
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || "Failed to process request.");
-      }
+
       if (group.privacy.toLowerCase() === "private" && !group.hasPasskey) {
         alert("Your request to join has been sent!");
       } else {
@@ -123,7 +98,7 @@ const MyGroups = () => {
       }
       await fetchAllData();
     } catch (err) {
-      alert(`Error: ${err.message}`);
+      alert(`Error: ${err.response?.data?.message || "Failed to process request."}`);
     } finally {
       setJoiningGroupId(null);
     }
