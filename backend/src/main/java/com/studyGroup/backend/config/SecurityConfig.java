@@ -78,7 +78,8 @@ public class SecurityConfig {
         // Using "*" with allowCredentials is not permitted, so we must be specific.
         configuration.setAllowedOrigins(Arrays.asList(
             "http://localhost:5173", // For local development
-            "https://beautiful-insight-production.up.railway.app" // Your deployed frontend
+            "https://beautiful-insight-production.up.railway.app", // Your deployed frontend
+            "https://studygroup-production-aa02.up.railway.app" // New frontend URL
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         // Allowing all headers is simpler and safer for now.

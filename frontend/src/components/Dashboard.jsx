@@ -67,7 +67,7 @@ export default function Dashboard() {
     };
 
     fetchData();
-  }, [handleLogout, data.dashboard]);
+  }, [handleLogout]);
 
   useEffect(() => {
     fetchData();
