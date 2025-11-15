@@ -55,8 +55,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         // Allow all public endpoints for registration, login, and password reset
                         .requestMatchers("/api/users/register/**", "/api/users/signin", "/api/users/forgot-password/**").permitAll()
-                        // Allow public access to course list
-                        .requestMatchers("/api/courses/**").permitAll()
+                        // Allow public GET access to course list. Other methods like POST might be secured.
+                        .requestMatchers(HttpMethod.GET, "/api/courses/**").permitAll()
                         // Allow WebSocket connections
                         .requestMatchers("/ws/**").permitAll()
                         // Allow OPTIONS requests for CORS pre-flight
@@ -82,7 +82,7 @@ public class SecurityConfig {
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         // Allowing all headers is simpler and safer for now.
-        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setExposedHeaders(List.of("Authorization"));
         // CRITICAL: This is required to allow the browser to send the Authorization header with credentials.
         configuration.setAllowCredentials(true);
