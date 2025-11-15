@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import apiClient from "../api";
 
 // A reusable, beautifully styled input field with an icon
 const InputField = ({ icon, ...props }) => (
@@ -147,6 +148,7 @@ export default function Login() {
               value={form.email}
               onChange={handleChange}
               placeholder="Email address"
+              autoComplete="email"
               icon={
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -171,9 +173,10 @@ export default function Login() {
               value={form.password}
               onChange={handleChange}
               placeholder="Password"
+              autoComplete="current-password"
               icon={
                 <svg
-                  xmlns="http://www.w.org/2000/svg"
+                  xmlns="http://www.w3.org/2000/svg"
                   className="h-5 w-5 text-gray-400"
                   fill="none"
                   viewBox="0 0 24 24"
