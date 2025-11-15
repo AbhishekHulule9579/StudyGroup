@@ -1,11 +1,17 @@
 import axios from 'axios';
 
+// This is a critical check to ensure the environment variable is loaded.
+const baseURL = import.meta.env.VITE_API_BASE_URL;
+if (!baseURL) {
+  console.error("VITE_API_BASE_URL is not defined. Please check your .env file or environment variables.");
+}
+
 // 1. Create an axios instance
 const apiClient = axios.create({
   // Use the environment variable for the base URL.
   // Vite uses `import.meta.env.VITE_API_BASE_URL`.
   // This will be 'https://studygroup-production-aa02.up.railway.app' in production.
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: baseURL,
 });
 
 // 2. Add a request interceptor to automatically attach the JWT token
