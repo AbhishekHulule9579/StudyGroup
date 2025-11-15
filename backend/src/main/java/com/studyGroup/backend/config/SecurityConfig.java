@@ -32,6 +32,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Permit WebSocket handshake/info endpoints and app/topic used by STOMP/SockJS
                 .requestMatchers(
+                    "/ws", // Explicitly permit the base WebSocket endpoint
                     "/ws/**",
                     "/ws/info/**",
                     "/topic/**",
@@ -41,7 +42,11 @@ public class SecurityConfig {
                     "/api/users/forgot-password/**",
                     "/api/courses/**"
                 ).permitAll()
-                .requestMatchers("/api/documents/**").authenticated()
+                // Be more specific about authenticated document routes
+                .requestMatchers("/api/documents/upload/**").authenticated()
+                .requestMatchers("/api/documents/download/**").authenticated()
+                .requestMatchers("/api/documents/group/**").authenticated()
+                .requestMatchers("/api/documents/delete/**").authenticated()
 
                 .anyRequest().authenticated()
             )
