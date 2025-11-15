@@ -111,15 +111,11 @@ public class UserController {
             userName, otp
         );
         
-        String emailResponse = emailService.sendEmail(email, "Password Reset OTP for Study Group Finder", emailBody);
-        
-        if (emailResponse.startsWith("200")) {
-            otpService.markResetStarted(email); 
-            return ResponseEntity.ok("OTP sent to the registered email.");
-        } else {
-            
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(emailResponse.substring(6)); 
-        }
+        // The new EmailService returns void and handles logging internally.
+        // We assume success if no exception is thrown.
+        emailService.sendEmail(email, "Password Reset OTP for Study Group Finder", emailBody);
+        otpService.markResetStarted(email); 
+        return ResponseEntity.ok("OTP sent to the registered email.");
     }
 
  
