@@ -70,27 +70,6 @@ public class SecurityConfig {
 
         return http.build();
     }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        // Your old configuration correctly specified the frontend URLs.
-        // Using "*" with allowCredentials is not permitted, so we must be specific.
-        configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:5173", // For local development
-            "https://beautiful-insight-production.up.railway.app" // Your deployed frontend
-        ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        // Allowing all headers is simpler and safer for now.
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization"));
-        // CRITICAL: This is required to allow the browser to send the Authorization header with credentials.
-        configuration.setAllowCredentials(true);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
 }
 /*
 package com.studyGroup.backend.config;
