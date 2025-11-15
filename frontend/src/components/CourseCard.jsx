@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import apiClient from "../api"; // Import the apiClient
 import JoinGroupButton from "./JoinGroupButton";
 
 function CourseCard({ course }) {
@@ -13,22 +14,13 @@ function CourseCard({ course }) {
     } else {
       // If user is logged in, attempt to enroll them in the course
       try {
-        const res = await fetch(`http://localhost:8145/api/profile/enroll/${course.courseId}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        // Use apiClient to enroll
+        await apiClient.post(`/api/profile/enroll/${course.courseId}`);
+        
+        // After successful enrollment, navigate to the dashboard
+        alert(`Successfully enrolled in ${course.courseName}!`);
+        navigate("/dashboard");
 
-        if (res.ok) {
-          // After successful enrollment, navigate to the dashboard
-          alert(`Successfully enrolled in ${course.courseName}!`);
-          navigate("/dashboard");
-        } else {
-          const errorText = await res.text();
-          throw new Error(errorText || "Failed to enroll in the course.");
-        }
       } catch (error) {
         console.error("Enrollment error:", error);
         alert(`Error: ${error.message}`);
@@ -73,4 +65,3 @@ function CourseCard({ course }) {
 }
 
 export default CourseCard;
-

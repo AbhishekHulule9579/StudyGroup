@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import apiClient from "../api"; // Import the apiClient
 
 // --- DASHBOARD COMPONENT ---
 export default function Dashboard() {
@@ -31,20 +32,16 @@ export default function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const fetchWithAuth = (endpoint) =>
-          fetch(`http://localhost:8145/api/${endpoint}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }).then((res) => (res.ok ? res.json() : null));
-
         // Fetch user first
-        const user = await fetchWithAuth("users/profile");
+        const userRes = await apiClient.get("api/users/profile");
+        const user = userRes.data;
         if (!user) throw new Error("Session expired. Please log in again.");
 
         // Fetch in parallel
         const [dashboard, notifications, calendar] = await Promise.all([
-          fetchWithAuth("dashboard"),
-          fetchWithAuth(`notifications/user/${user.id}`),
-          fetchWithAuth("calendar/events/upcoming"),
+          apiClient.get("api/dashboard").then(res => res.data),
+          apiClient.get(`api/notifications/user/${user.id}`).then(res => res.data),
+          apiClient.get("api/calendar/events/upcoming").then(res => res.data),
         ]);
 
         if (!dashboard) throw new Error("Failed to load dashboard data.");

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import apiClient from "../api"; // Import the apiClient
 import { markNotificationRead } from "../services/NotificationService";
 
 // --- 1. Logged-Out View ---
@@ -322,14 +323,10 @@ export default function Nav({
         const userData = storedUser ? JSON.parse(storedUser) : { name: "User" };
         setUserName(userData.name || "User");
 
-        const res = await fetch("http://localhost:8145/api/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setProfilePic(data.profilePicUrl || null);
-        }
+        // Use apiClient to fetch the profile
+        const response = await apiClient.get("/api/profile");
+        const profileData = response.data;
+        setProfilePic(profileData?.profilePicUrl || null);
       } catch (err) {
         console.error("Failed to fetch nav user:", err);
       }

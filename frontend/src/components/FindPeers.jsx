@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import apiClient from "../api"; // Import the apiClient
 
 // --- Main Component ---
 const FindPeers = () => {
@@ -18,15 +19,9 @@ const FindPeers = () => {
 
       setLoading(true);
       try {
-        const response = await fetch("http://localhost:8145/api/dashboard", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to load peer suggestions. Please try again.");
-        }
-
-        const data = await response.json();
+        // Use apiClient to fetch dashboard data for peers
+        const response = await apiClient.get("/api/dashboard");
+        const data = response.data;
         setPeers(data.suggestedPeers || []);
       } catch (err) {
         setError(err.message);
