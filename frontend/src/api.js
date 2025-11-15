@@ -1,16 +1,18 @@
 import axios from 'axios';
 
-// This is a critical check to ensure the environment variable is loaded.
-const baseURL = import.meta.env.VITE_API_BASE_URL;
-if (!baseURL) {
-  console.error("VITE_API_BASE_URL is not defined. Please check your .env file or environment variables.");
+// Get the base URL from Vite's environment variables.
+// import.meta.env.PROD is `true` during `npm run build`.
+// This provides a safe fallback for local development if the .env file is missing.
+const baseURL = import.meta.env.PROD
+  ? import.meta.env.VITE_API_BASE_URL
+  : 'http://localhost:8080'; // Fallback for local dev, uses vite.config.js proxy
+
+if (import.meta.env.PROD && !baseURL) {
+  console.error("PRODUCTION ERROR: VITE_API_BASE_URL is not defined. The application will not be able to connect to the backend.");
 }
 
 // 1. Create an axios instance
 const apiClient = axios.create({
-  // Use the environment variable for the base URL.
-  // Vite uses `import.meta.env.VITE_API_BASE_URL`.
-  // This will be 'https://studygroup-production-aa02.up.railway.app' in production.
   baseURL: baseURL,
 });
 
