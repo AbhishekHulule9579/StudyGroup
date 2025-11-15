@@ -66,16 +66,6 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-security</artifactId>
             </dependency>
-            <dependency>
-                <groupId>org.springframework.security</groupId>
-                <artifactId>spring-security-messaging</artifactId>
-                <version>6.2.1</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.security</groupId>
-                <artifactId>spring-security-config</artifactId>
-                <version>6.2.1</version>
-            </dependency>
 
         <!-- This dependency helps your IDE understand custom application.properties -->
         <dependency>
@@ -115,13 +105,6 @@
             <version>32.1.2-jre</version>
         </dependency>
         
-        <!-- *** THIS IS THE NEW DEPENDENCY FOR VALIDATION *** -->
-        <dependency>
-            <groupId>jakarta.validation</groupId>
-            <artifactId>jakarta.validation-api</artifactId>
-            <version>3.0.2</version>
-        </dependency>
-
         <!-- JWT (JSON Web Token) Libraries -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
@@ -140,25 +123,6 @@
             <version>0.11.5</version>
             <scope>runtime</scope>
         </dependency>
-        
-        
-<!-- ✅ Core for REST APIs -->
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-web</artifactId>
-</dependency>
-
-<!-- ✅ WebSocket + STOMP support -->
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-websocket</artifactId>
-</dependency>
-
-<!-- ✅ JSON serialization -->
-<dependency>
-    <groupId>com.fasterxml.jackson.core</groupId>
-    <artifactId>jackson-databind</artifactId>
-</dependency>
 
         
         
