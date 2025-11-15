@@ -32,6 +32,12 @@ public class EmailService {
             logger.error("****************************************************************");
             throw new IllegalArgumentException("SendGrid API key is missing or not configured.");
         }
+        if (fromEmail == null || fromEmail.trim().isEmpty() || !fromEmail.contains("@")) {
+            logger.error("****************************************************************");
+            logger.error("sendgrid.from.email is not configured correctly in application.properties.");
+            logger.error("****************************************************************");
+            throw new IllegalArgumentException("SendGrid 'from' email is missing or invalid.");
+        }
         this.sendGrid = new SendGrid(apiKey);
         this.fromEmail = fromEmail;
     }
