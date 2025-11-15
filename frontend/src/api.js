@@ -1,27 +1,38 @@
 import axios from 'axios';
 
-// Get the base URL from the environment variables
-// Vite uses `import.meta.env.VITE_...`
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-
-// Create an axios instance with the base URL
+// 1. Create an axios instance
 const apiClient = axios.create({
-  baseURL: apiBaseUrl,
+  // Use the environment variable for the base URL.
+  // Vite uses `import.meta.env.VITE_API_BASE_URL`.
+  // This will be 'https://studygroup-production-aa02.up.railway.app' in production.
+  baseURL: import.meta.env.VITE_API_BASE_URL,
 });
 
-// (Optional but recommended) Add an interceptor to include the JWT token in requests
+// 2. Add a request interceptor to automatically attach the JWT token
 apiClient.interceptors.request.use(
   (config) => {
-    // CORRECTED: Get the token from sessionStorage to match Login.jsx
-    const token = sessionStorage.getItem('token');
+    // Get the token from sessionStorage
+    const  token = sessionStorage.getItem('token');
+
     if (token) {
+      // If the token exists, add the 'Authorization' header
       config.headers.Authorization = `Bearer ${token}`;
     }
-    return config;
+        return config;
   },
   (error) => {
-    return Promise.reject(error);
+    // Enhance error handling
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      return Promise.reject(error);
+    } else if (error.request) {
+      // The request was made but no response was received
+      error.message = "No response from server. Please check your network connection.";
+    }
+    return Promise.reject(error); // For other errors
   }
 );
 
+// 3. Export the configured client
 export default apiClient;

@@ -39,9 +39,9 @@ export default function Dashboard() {
 
         // Fetch in parallel
         const [dashboard, notifications, calendar] = await Promise.all([
-          apiClient.get("api/dashboard").then(res => res.data).catch(() => null), // Return null on error
-          apiClient.get(`api/notifications/user/${user.id}`).then(res => res.data).catch(() => []), // Return empty array on error
-          apiClient.get("api/calendar/events/upcoming").then(res => res.data).catch(() => []), // Return empty array on error
+          apiClient.get("/api/dashboard").then(res => res.data).catch(() => null), // Return null on error
+          apiClient.get(`/api/notifications/user/${user.id}`).then(res => res.data).catch(() => []), // Return empty array on error
+          apiClient.get("/api/calendar/events/upcoming").then(res => res.data).catch(() => []), // Return empty array on error
         ]);
 
         if (!dashboard) throw new Error("Failed to load dashboard data.");
@@ -49,7 +49,7 @@ export default function Dashboard() {
         // store raw calendar as returned — we'll parse later when needed
         setData({
           dashboard,
-          notifications: (Array.isArray(notifications) ? notifications : []).slice(0, 3),
+          notifications: Array.isArray(notifications) ? notifications.slice(0, 3) : [],
           calendar: Array.isArray(calendar) ? calendar : [],
         });
 
