@@ -2,6 +2,7 @@ package com.studyGroup.backend.config;
 
 import com.studyGroup.backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.config.Customizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -47,7 +48,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 // 1. Apply the global CORS configuration
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(Customizer.withDefaults()) // Use the corsConfigurationSource bean
                 // 2. Disable CSRF, as we are using stateless JWT authentication
                 .csrf(csrf -> csrf.disable())
                 // 3. Configure authorization rules
@@ -73,12 +74,18 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Allow requests from any origin. For production, you might want to restrict this
-        // to your frontend's URL, e.g., "https://my-frontend.up.railway.app"
-        configuration.setAllowedOrigins(List.of("*"));
+        // Your old configuration correctly specified the frontend URLs.
+        // Using "*" with allowCredentials is not permitted, so we must be specific.
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:5173", // For local development
+            "https://beautiful-insight-production.up.railway.app" // Your deployed frontend
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
+        // Allowing all headers is simpler and safer for now.
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization"));
+        // CRITICAL: This is required to allow the browser to send the Authorization header with credentials.
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
