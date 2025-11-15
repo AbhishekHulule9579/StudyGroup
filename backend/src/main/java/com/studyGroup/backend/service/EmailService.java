@@ -25,6 +25,13 @@ public class EmailService {
     public EmailService(
             @Value("${sendgrid.api.key}") String apiKey,
             @Value("${sendgrid.from.email}") String fromEmail) {
+        // Fail-fast check to ensure the API key is loaded from environment variables
+        if (apiKey == null || apiKey.trim().isEmpty() || apiKey.startsWith("${")) {
+            logger.error("****************************************************************");
+            logger.error("SENDGRID_API_KEY is not configured. Please set the environment variable.");
+            logger.error("****************************************************************");
+            throw new IllegalArgumentException("SendGrid API key is missing or not configured.");
+        }
         this.sendGrid = new SendGrid(apiKey);
         this.fromEmail = fromEmail;
     }
