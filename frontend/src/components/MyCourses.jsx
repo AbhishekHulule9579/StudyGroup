@@ -119,9 +119,10 @@ const MyCourses = () => {
       const coursesData = coursesRes.data;
       const profileData = profileRes.data;
 
-      setAllCourses(coursesData);
+      setAllCourses(Array.isArray(coursesData) ? coursesData : []);
 
-      if (profileData.enrolledCourseIds) {
+      // Safely handle the case where profileData or enrolledCourseIds might not exist
+      if (profileData && profileData.enrolledCourseIds) {
         try {
           const ids = JSON.parse(profileData.enrolledCourseIds);
           setEnrolledCourseIds(Array.isArray(ids) ? new Set(ids) : new Set());
@@ -129,6 +130,8 @@ const MyCourses = () => {
           console.error("Could not parse enrolled course IDs:", parseError);
           setEnrolledCourseIds(new Set());
         }
+      } else {
+        setEnrolledCourseIds(new Set());
       }
     } catch (err) {
       setError(err.message);

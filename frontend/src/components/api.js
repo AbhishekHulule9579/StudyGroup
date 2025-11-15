@@ -17,11 +17,19 @@ apiClient.interceptors.request.use(
       // If the token exists, add the 'Authorization' header
       config.headers.Authorization = `Bearer ${token}`;
     }
-    return config;
+        return config;
   },
   (error) => {
-    // Handle request errors
-    return Promise.reject(error);
+    // Enhance error handling
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      return Promise.reject(error);
+    } else if (error.request) {
+      // The request was made but no response was received
+      error.message = "No response from server. Please check your network connection.";
+    }
+    return Promise.reject(error); // For other errors
   }
 );
 
