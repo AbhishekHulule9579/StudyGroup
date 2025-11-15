@@ -30,7 +30,7 @@ export default function Dashboard() {
     navigate("/login");
   }, [navigate]);
 
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     const token = sessionStorage.getItem("token");
     if (!token) return handleLogout();
 
@@ -61,15 +61,19 @@ export default function Dashboard() {
         setUserName(user.name || "User");
       } catch (err) {
         console.error("Dashboard fetch error:", err);
-        setError(err.message);
-        handleLogout();
+        // Be less aggressive on error. Show a message instead of logging out immediately.
+        setError(err.response?.data?.message || err.message || "Failed to load dashboard.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [handleLogout]);
+  }, [handleLogout, data.dashboard]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) return <CenteredMessage text="Loading Dashboard..." />;
   if (error) return <CenteredMessage text={`Error: ${error}`} error />;
