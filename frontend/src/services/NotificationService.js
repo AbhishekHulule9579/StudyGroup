@@ -1,78 +1,38 @@
 // Simple API wrapper for notifications
-const API_BASE = "http://localhost:8145/api/notifications";
-
-function isTokenExpired(token) {
-  if (!token) return true;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const currentTime = Date.now() / 1000;
-    return payload.exp < currentTime;
-  } catch (e) {
-    return true;
-  }
-}
-
-function authHeaders() {
-  const token = sessionStorage.getItem("token");
-  if (isTokenExpired(token)) {
-    // Token is expired, clear it and redirect to login
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("user");
-    window.location.href = "/login";
-    return {};
-  }
-  return {
-    "Content-Type": "application/json",
-    Authorization: token ? `Bearer ${token}` : undefined,
-  };
-}
+import apiClient from "../api";
 
 export async function getAllNotifications(userId) {
-  const res = await fetch(`${API_BASE}/user/${userId}`, {
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error("Failed to load notifications");
-  return res.json();
+  const res = await apiClient.get(`/notifications/user/${userId}`);
+  return res.data;
 }
 
 export async function markNotificationRead(id) {
-  const res = await fetch(`${API_BASE}/${id}/read`, {
-    method: "PUT",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error("Failed to mark as read");
+  await apiClient.put(`/notifications/${id}/read`);
 }
 
 export async function markAllNotificationsRead(userId) {
-  const res = await fetch(`${API_BASE}/user/${userId}/read-all`, {
-    method: "PUT",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error("Failed to mark all as read");
+  await apiClient.put(`/notifications/user/${userId}/read-all`);
 }
 
 export async function deleteAllRead(userId) {
-  const res = await fetch(`${API_BASE}/user/${userId}/read`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error("Failed to delete all read notifications");
+  await apiClient.delete(`/notifications/user/${userId}/read`);
 }
 
 export async function deleteSelectedNotifications(notificationIds) {
-  const res = await fetch(`${API_BASE}/selected`, {
-    method: "DELETE",
-    headers: authHeaders(),
-    body: JSON.stringify(notificationIds),
-  });
-  if (res.status === 403) {
-    // Token expired or invalid, redirect to login
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("user");
-    window.location.href = "/login";
-    throw new Error("Session expired. Please log in again.");
+  try {
+    await apiClient.delete(`/notifications/selected`, {
+      data: notificationIds,
+    });
+  } catch (error) {
+    if (error.response?.status === 403) {
+      // Token expired or invalid, redirect to login
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
+      window.location.href = "/login";
+      throw new Error("Session expired. Please log in again.");
+    }
+    throw error;
   }
-  if (!res.ok) throw new Error("Failed to delete selected notifications");
 }
 
 // Utility: map backend NotificationDTO -> UI item shape
