@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -29,6 +30,9 @@ public class SecurityConfig {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtAuthFilter jwtAuthFilter;
 
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
@@ -50,16 +54,18 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         // Allow all public endpoints for registration, login, and password reset
                         .requestMatchers("/api/users/register/**", "/api/users/signin", "/api/users/forgot-password/**").permitAll()
+                        // Allow public access to course list
+                        .requestMatchers("/api/courses/**").permitAll()
+                        // Allow WebSocket connections
+                        .requestMatchers("/ws/**").permitAll()
                         // Allow OPTIONS requests for CORS pre-flight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // All other requests must be authenticated
                         .anyRequest().authenticated()
                 )
                 // 4. Set session management to stateless
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-
-        // Note: The JWT filter would be added here once you implement it.
-        // http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
