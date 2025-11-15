@@ -685,7 +685,7 @@ const GroupChat = ({
       )}
 
       {/* --- STUNNING INPUT BAR --- */}
-      <div className="flex-none w-full border-t bg-white px-0 py-3 md:sticky md:bottom-0 fixed bottom-0 md:relative shadow-lg z-10">
+      <div className="flex-none w-full border-t bg-white px-0 py-3 sticky bottom-0 shadow-lg z-10">
         <form
           className="max-w-full w-full mx-auto flex gap-1 items-center p-2"
           onSubmit={handleSend}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import moment from "moment";
+import apiClient from "../../api";
 
 export default function SessionCreateModal({ groupId, onCreate, onClose }) {
   const [topic, setTopic] = useState("");
@@ -22,18 +23,9 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
   // NEW: Fetch organizer name just like Profile.jsx
   useEffect(() => {
     const fetchUserDetails = async () => {
-      const token = sessionStorage.getItem("token");
-      if (!token) return;
-
       try {
-        const userRes = await fetch("http://localhost:8145/api/users/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          setOrganizerName(userData.name); // SAME AS PROFILE PAGE 💥
-        }
+        const userRes = await apiClient.get("api/users/profile");
+        setOrganizerName(userRes.data.name); // SAME AS PROFILE PAGE 💥
       } catch (err) {
         console.error("Error fetching user name:", err);
       }
@@ -55,18 +47,11 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
   // Fetch courses
   useEffect(() => {
     if (groupId) return;
-    const token = sessionStorage.getItem("token");
-    if (!token) return;
 
     const fetchCourses = async () => {
       try {
-        const response = await fetch("http://localhost:8145/api/courses", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (response.ok) {
-          setCourses(await response.json());
-        }
+        const response = await apiClient.get("api/courses");
+        setCourses(response.data);
       } catch (error) {
         console.error("Error fetching courses:", error);
       }
@@ -82,15 +67,10 @@ export default function SessionCreateModal({ groupId, onCreate, onClose }) {
       return;
     }
 
-    const token = sessionStorage.getItem("token");
-
     const fetchGroups = async () => {
       try {
-        const response = await fetch(
-          `http://localhost:8145/api/groups/course/${selectedCourse}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (response.ok) setGroups(await response.json());
+        const response = await apiClient.get(`api/groups/course/${selectedCourse}`);
+        setGroups(response.data);
       } catch (err) {
         console.error("Error fetching groups:", err);
       }

@@ -15,9 +15,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                // By removing .setAllowedOriginPatterns("*"), this endpoint will now
-                // inherit the global CORS configuration defined in SecurityConfig.
-                // This resolves the conflict that was blocking your REST API calls.
+                .setAllowedOrigins(
+                    "http://localhost:5173",
+                    "https://beautiful-insight-production.up.railway.app",
+                    "https://studygroup-production-aa02.up.railway.app"
+                )
                 .withSockJS();
     }
 
