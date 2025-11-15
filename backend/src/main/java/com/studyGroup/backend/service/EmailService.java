@@ -1,5 +1,64 @@
 package com.studyGroup.backend.service;
 
+import com.sendgrid.Method;
+import com.sendgrid.Request;
+import com.sendgrid.Response;
+import com.sendgrid.SendGrid;
+import com.sendgrid.helpers.mail.Mail;
+import com.sendgrid.helpers.mail.objects.Content;
+import com.sendgrid.helpers.mail.objects.Email;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+
+@Service
+public class EmailService {
+
+    private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
+
+    private final SendGrid sendGrid;
+    private final String fromEmail;
+
+    public EmailService(
+            @Value("${sendgrid.api.key}") String apiKey,
+            @Value("${sendgrid.from.email}") String fromEmail) {
+        this.sendGrid = new SendGrid(apiKey);
+        this.fromEmail = fromEmail;
+    }
+
+    public void sendEmail(String to, String subject, String body) {
+        Email from = new Email(fromEmail);
+        Email toEmail = new Email(to);
+        Content content = new Content("text/plain", body);
+        Mail mail = new Mail(from, subject, toEmail, content);
+
+        Request request = new Request();
+        try {
+            request.setMethod(Method.POST);
+            request.setEndpoint("mail/send");
+            request.setBody(mail.build());
+
+            Response response = sendGrid.api(request);
+
+            if (response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
+                logger.info("Email sent successfully to {} with status code: {}", to, response.getStatusCode());
+            } else {
+                logger.error("Failed to send email to {}. Status Code: {}, Body: {}", to, response.getStatusCode(), response.getBody());
+            }
+        } catch (IOException ex) {
+            // This is a replacement for the MailSendException you were seeing
+            logger.error("************************************************************************");
+            logger.error("EMAIL ERROR DETECTED: Failed to send email to {}. IOException Reason: {}", to, ex.getMessage(), ex);
+            // You might want to re-throw this as a custom exception
+        }
+    }
+}
+/*
+package com.studyGroup.backend.service;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException; 
@@ -45,3 +104,4 @@ public class EmailService {
         }
     }
 }
+*/
