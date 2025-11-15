@@ -42,5 +42,6 @@ apiClient.interceptors.request.use(
   }
 );
 
-// 3. Export the configured client
+// 3. Export the configured client and base URL
+export { baseURL };
 export default apiClient;

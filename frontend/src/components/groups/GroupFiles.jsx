@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import apiClient from "../../api";
 
 const GroupFiles = ({ groupId, userRole, onDocumentCountChange }) => {
   const [files, setFiles] = useState([]);
@@ -17,27 +18,20 @@ const GroupFiles = ({ groupId, userRole, onDocumentCountChange }) => {
     setError("");
 
     try {
-      const response = await fetch(`http://localhost:8145/api/documents/group/${groupId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiClient.get(`/api/documents/group/${groupId}`);
 
       if (response.status === 403) {
         setError("Access denied: You are not authorized to view these documents.");
         return;
       }
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch documents (Status: ${response.status})`);
-      }
-
-      const data = await response.json();
-      setFiles(data);
-      setFilteredFiles(data);
+      setFiles(response.data);
+      setFilteredFiles(response.data);
       if (onDocumentCountChange) {
-        onDocumentCountChange(data.length);
+        onDocumentCountChange(response.data.length);
       }
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Failed to fetch documents");
     } finally {
       setLoading(false);
     }
@@ -62,12 +56,12 @@ const GroupFiles = ({ groupId, userRole, onDocumentCountChange }) => {
   // Handle download
   const handleDownload = async (fileId) => {
     try {
-      const response = await fetch(`http://localhost:8145/api/documents/${fileId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await apiClient.get(`/api/documents/${fileId}`, {
+        responseType: 'blob'
       });
 
-      if (response.ok) {
-        const blob = await response.blob();
+      if (response.status === 200) {
+        const blob = response.data;
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;

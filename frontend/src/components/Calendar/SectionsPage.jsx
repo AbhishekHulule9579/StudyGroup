@@ -15,6 +15,7 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 // --- Modals (assuming they are in these locations) ---
 import SessionCreateModal from "./SessionCreateModal";
 import EventDetailsModal from "./EventDetailsModal";
+import apiClient from "../../api";
 
 const localizer = momentLocalizer(moment);
 
@@ -73,28 +74,17 @@ export default function SessionsPage({ userRole, groupId }) {
       }
       try {
         // Fetch user ID
-        const userResponse = await fetch(
-          "http://localhost:8145/api/users/profile",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          setCurrentUserId(userData.id);
+        const userResponse = await apiClient.get("/api/users/profile");
+        if (userResponse.status === 200) {
+          setCurrentUserId(userResponse.data.id);
         }
 
         // Fetch group sessions
-        const response = await fetch(
-          `http://localhost:8145/api/calendar/events/group/${groupId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        if (!response.ok)
+        const response = await apiClient.get(`/api/calendar/events/group/${groupId}`);
+        if (response.status !== 200)
           throw new Error(`Failed to fetch sessions: ${response.status}`);
 
-        const events = await response.json();
+        const events = response.data;
         const formatted = events.map((e) => ({
           id: e.id,
           title: e.topic,
@@ -137,21 +127,11 @@ export default function SessionsPage({ userRole, groupId }) {
     const token = sessionStorage.getItem("token");
     if (!token) return alert("No authentication token found.");
     try {
-      const response = await fetch(
-        "http://localhost:8145/api/calendar/events",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ ...session, groupId }),
-        }
-      );
-      if (!response.ok)
+      const response = await apiClient.post("/api/calendar/events", { ...session, groupId });
+      if (response.status !== 200 && response.status !== 201)
         throw new Error(`Failed to create session: ${response.status}`);
 
-      const created = await response.json();
+      const created = response.data;
       const newEvent = {
         id: created.id,
         title: created.topic,
@@ -189,16 +169,9 @@ export default function SessionsPage({ userRole, groupId }) {
     if (!window.confirm("Are you sure you want to delete this session?"))
       return;
 
-    const token = sessionStorage.getItem("token");
     try {
-      const response = await fetch(
-        `http://localhost:8145/api/calendar/events/${sessionId}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (!response.ok) throw new Error(`Failed: ${response.status}`);
+      const response = await apiClient.delete(`/api/calendar/events/${sessionId}`);
+      if (response.status < 200 || response.status >= 300) throw new Error(`Failed: ${response.status}`);
 
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
       setSelectedEvent(null);

@@ -4,6 +4,7 @@ import { Stomp } from "@stomp/stompjs";
 import EmojiPicker from "emoji-picker-react";
 import FloatingChatWindow from "../FloatingChatWindow";
 import { useNavigate } from "react-router-dom";
+import apiClient, { baseURL } from "../../api";
 
 // --- Utility Components & Icons (Unchanged) ---
 
@@ -247,29 +248,19 @@ const GroupChat = ({
   // --- Data Loading & WebSocket Logic (Unchanged) ---
 
   const loadHistory = async () => {
-    const token = sessionStorage.getItem("token");
     try {
-      const res = await fetch(
-        `http://localhost:8145/api/groups/${groupId}/messages`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(Array.isArray(data) ? data.map(normalizeMessage) : []);
+      const res = await apiClient.get(`/api/groups/${groupId}/messages`);
+      if (res.status === 200) {
+        setMessages(Array.isArray(res.data) ? res.data.map(normalizeMessage) : []);
       }
     } catch {}
   };
 
   const loadPinnedMessages = async () => {
-    const token = sessionStorage.getItem("token");
     try {
-      const res = await fetch(
-        `http://localhost:8145/api/groups/${groupId}/pins`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setPinnedIds(data.map((p) => p.messageId));
+      const res = await apiClient.get(`/api/groups/${groupId}/pins`);
+      if (res.status === 200) {
+        setPinnedIds(res.data.map((p) => p.messageId));
       }
     } catch {}
   };
@@ -280,7 +271,7 @@ const GroupChat = ({
 
     const connect = () => {
       try {
-        const socket = new SockJS("http://localhost:8145/ws");
+        const socket = new SockJS(`${baseURL}/ws`);
         stomp = Stomp.over(() => socket);
         stomp.debug = () => {};
         stomp.connect(
@@ -353,16 +344,12 @@ const GroupChat = ({
 
   const handleTogglePin = async (id) => {
     const isPinned = pinnedIds.includes(id);
-    const token = sessionStorage.getItem("token");
     try {
-      const res = await fetch(
-        `http://localhost:8145/api/groups/${groupId}/pins/messages/${id}`,
-        {
-          method: isPinned ? "DELETE" : "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (res.ok) {
+      const res = await apiClient.request({
+        url: `/api/groups/${groupId}/pins/messages/${id}`,
+        method: isPinned ? "DELETE" : "POST",
+      });
+      if (res.status >= 200 && res.status < 300) {
         setPinnedIds((prev) =>
           prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id]
         );
@@ -382,16 +369,9 @@ const GroupChat = ({
   };
 
   const handleDelete = async (id) => {
-    const token = sessionStorage.getItem("token");
     try {
-      const res = await fetch(
-        `http://localhost:8145/api/groups/${groupId}/messages/${id}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (res.ok) {
+      const res = await apiClient.delete(`/api/groups/${groupId}/messages/${id}`);
+      if (res.status >= 200 && res.status < 300) {
         setMessages((prev) => prev.filter((m) => m.id !== id));
       } else {
         alert("Failed to delete message.");
@@ -738,16 +718,12 @@ const GroupChat = ({
                     formData.append("file", file);
                     formData.append("groupId", groupId);
                     formData.append("senderId", currentUser.id);
-                    const token = sessionStorage.getItem("token");
-                    const res = await fetch(
-                      `http://localhost:8145/api/documents/upload`,
-                      {
-                        method: "POST",
-                        headers: { Authorization: `Bearer ${token}` },
-                        body: formData,
-                      }
-                    );
-                    if (res.ok) {
+                    const res = await apiClient.post(`/api/documents/upload`, formData, {
+                      headers: {
+                        'Content-Type': 'multipart/form-data',
+                      },
+                    });
+                    if (res.status >= 200 && res.status < 300) {
                       loadHistory(); // Refresh messages after upload
                     } else {
                       alert("Failed to upload file");
