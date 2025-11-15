@@ -6,7 +6,12 @@ import apiClient from "../api"; // Import the apiClient
 export default function Dashboard() {
   const navigate = useNavigate();
   const [data, setData] = useState({
-    dashboard: null,
+    // Initialize dashboard with default empty values to prevent render errors
+    dashboard: {
+      enrolledCoursesCount: 0,
+      joinedGroups: [],
+      suggestedPeers: [],
+    },
     notifications: [],
     calendar: [],
   });
@@ -48,7 +53,7 @@ export default function Dashboard() {
 
         // store raw calendar as returned — we'll parse later when needed
         setData({
-          dashboard,
+          dashboard: dashboard || data.dashboard, // Fallback to initial state if dashboard is null
           notifications: Array.isArray(notifications) ? notifications.slice(0, 3) : [],
           calendar: Array.isArray(calendar) ? calendar : [],
         });
