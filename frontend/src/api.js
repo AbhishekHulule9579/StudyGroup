@@ -12,7 +12,8 @@ const apiClient = axios.create({
 // (Optional but recommended) Add an interceptor to include the JWT token in requests
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('jwt_token'); // Or wherever you store your token
+    // CORRECTED: Get the token from sessionStorage to match Login.jsx
+    const token = sessionStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -43,9 +43,9 @@ const MyGroups = () => {
       const allGroupsData = allGroupsRes.data;
       const coursesData = coursesRes.data;
 
-      setMyGroups(myGroupsData);
-      setAllGroups(allGroupsData);
-      setCourses(coursesData);
+      setMyGroups(Array.isArray(myGroupsData) ? myGroupsData : []);
+      setAllGroups(Array.isArray(allGroupsData) ? allGroupsData : []);
+      setCourses(Array.isArray(coursesData) ? coursesData : []);
     } catch (err) {
       setError(err.message);
     } finally {
