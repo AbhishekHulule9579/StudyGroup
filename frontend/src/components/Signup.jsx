@@ -139,7 +139,12 @@ export default function Signup() {
         setError(response.data || "An error occurred.");
       }
     } catch (err) {
-      const errorMessage = err.response?.data || "Failed to connect to the server. Please try again.";
+      // Check if the error response is HTML, and if so, show a generic message.
+      const isHtmlResponse = typeof err.response?.data === 'string' && err.response.data.trim().startsWith('<!doctype html>');
+      const errorMessage = isHtmlResponse 
+        ? "A server error occurred. Please try again later." 
+        : err.response?.data || "Failed to connect to the server. Please try again.";
+
       if (err.response?.status === 409) {
         setError(<> {errorMessage} <Link to="/login" className="font-bold underline"> Login here. </Link> </>);
       } else {
