@@ -71,7 +71,8 @@ function Home() {
             // Use apiClient to make the request
             const response = await apiClient.get('/api/courses');
             const data = response.data;
-            setCourses(data);
+            // Ensure that we always set an array to the state
+            setCourses(Array.isArray(data) ? data : []);
         } catch (err) {
             setError(err.response?.data?.message || "Could not fetch courses. Please try again later.");
         } finally {
