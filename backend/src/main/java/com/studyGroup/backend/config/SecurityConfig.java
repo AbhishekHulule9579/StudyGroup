@@ -60,7 +60,7 @@ public class SecurityConfig {
         // Add your deployed frontend URL here. The localhost URL is for local development.
         configuration.setAllowedOrigins(Arrays.asList(
             "http://localhost:5173",
-            "https://your-frontend-url.up.railway.app" // <-- Replace this with your actual frontend URL once deployed
+            "https://beautiful-insight-production.up.railway.app"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
