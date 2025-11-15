@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import apiClient from "../../api";
 
 import GroupAbout from "./GroupAbout";
 import GroupChat from "./GroupChat";
@@ -56,12 +57,8 @@ export default function GroupDetailPage({ openFloatingChat }) {
 
     try {
       const [groupDetailsRes, membersRes] = await Promise.all([
-        fetch(`http://localhost:8145/api/groups/${groupId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`http://localhost:8145/api/groups/${groupId}/members`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        apiClient.get(`/api/groups/${groupId}`),
+        apiClient.get(`/api/groups/${groupId}/members`),
       ]);
 
       if (groupDetailsRes.status === 401 || membersRes.status === 401) {
@@ -70,17 +67,8 @@ export default function GroupDetailPage({ openFloatingChat }) {
         return;
       }
 
-      if (!groupDetailsRes.ok)
-        throw new Error(
-          `Failed to fetch group details (Status: ${groupDetailsRes.status})`
-        );
-      if (!membersRes.ok)
-        throw new Error(
-          `Failed to fetch group members (Status: ${membersRes.status})`
-        );
-
-      const groupData = await groupDetailsRes.json();
-      const membersData = await membersRes.json();
+      const groupData = groupDetailsRes.data;
+      const membersData = membersRes.data;
 
       setGroup({
         ...groupData,
@@ -113,15 +101,9 @@ export default function GroupDetailPage({ openFloatingChat }) {
       ]);
 
       try {
-        const profileRes = await fetch(
-          `http://localhost:8145/api/users/profile`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        if (profileRes.ok) {
-          const profileData = await profileRes.json();
-          setCurrentUser(profileData);
+        const profileRes = await apiClient.get(`/api/users/profile`);
+        if (profileRes.status === 200) {
+          setCurrentUser(profileRes.data);
         } else {
           const idFromToken = getUserIdFromToken();
           if (idFromToken) {
@@ -179,29 +161,16 @@ export default function GroupDetailPage({ openFloatingChat }) {
     }
 
     try {
-      const response = await fetch(
-        `http://localhost:8145/api/groups/leave/${groupId}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await apiClient.delete(`/api/groups/leave/${groupId}`);
 
-      const contentType = response.headers.get("content-type");
-      let data = { message: "Successfully processed request." };
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
-      }
-
-      if (!response.ok) {
+      if (response.status >= 200 && response.status < 300) {
+        alert(`Success: ${response.data?.message || "Successfully left the group"}`);
+        navigate("/my-groups");
+      } else {
         const errorMessage =
-          data.message || `Failed to leave group (Status: ${response.status})`;
+          response.data?.message || `Failed to leave group (Status: ${response.status})`;
         alert(`Error: ${errorMessage}`);
-        return;
       }
-
-      alert(`Success: ${data.message}`);
-      navigate("/my-groups");
     } catch (err) {
       console.error("Leave Group error:", err);
       alert("An unexpected error occurred while processing your request.");
