@@ -58,7 +58,7 @@ public class SecurityConfig {
                         // Allow public GET access to course list. Other methods like POST might be secured.
                         .requestMatchers(HttpMethod.GET, "/api/courses/**").permitAll()
                         // Allow WebSocket connections
-                        .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/ws", "/ws/**", "/ws/info", "/ws/info/**").permitAll()
                         // Allow OPTIONS requests for CORS pre-flight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // All other requests must be authenticated

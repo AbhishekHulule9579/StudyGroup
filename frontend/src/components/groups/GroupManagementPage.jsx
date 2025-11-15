@@ -9,6 +9,7 @@ import ConfirmationModal from "./ConfirmationModal";
 import RequesterProfileModal from "./RequesterProfileModal";
 import { IconChevronLeft, IconUsers, IconFileText } from "./SvgIcons";
 import RoleBadge from "./RoleBadge";
+import apiClient from "../../api";
 
 export default function GroupManagementPage() {
   const { groupId } = useParams();
@@ -68,15 +69,9 @@ export default function GroupManagementPage() {
     setError("");
     try {
       const [groupRes, membersRes, requestsRes] = await Promise.all([
-        fetch(`http://localhost:8145/api/groups/${groupId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`http://localhost:8145/api/groups/${groupId}/members`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`http://localhost:8145/api/groups/${groupId}/requests`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        apiClient.get(`/api/groups/${groupId}`),
+        apiClient.get(`/api/groups/${groupId}/members`),
+        apiClient.get(`/api/groups/${groupId}/requests`).catch(() => ({ data: { requests: [] } })),
       ]);
       if (
         [groupRes, membersRes, requestsRes].some((res) => res.status === 401)
@@ -85,17 +80,14 @@ export default function GroupManagementPage() {
         navigate("/login");
         throw new Error("Your session has expired. Please log in again.");
       }
-      if (!groupRes.ok || !membersRes.ok) {
+      if (groupRes.status !== 200 || membersRes.status !== 200) {
         throw new Error(
           "Failed to load group data, or you do not have permission."
         );
       }
-      const groupData = await groupRes.json();
-      const membersData = await membersRes.json();
-      let requestsData = { requests: [] };
-      if (requestsRes.ok) {
-        requestsData = await requestsRes.json();
-      }
+      const groupData = groupRes.data;
+      const membersData = membersRes.data;
+      let requestsData = requestsRes.data || { requests: [] };
       setGroup(groupData);
       setMembers(membersData || []);
       setRequests(
@@ -136,20 +128,13 @@ export default function GroupManagementPage() {
       return;
     }
     try {
-      const response = await fetch(
-        `http://localhost:8145/api/groups/${groupId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ name: groupName, description: groupDesc }),
-        }
+      const response = await apiClient.put(
+        `/api/groups/${groupId}`,
+        { name: groupName, description: groupDesc }
       );
-      if (!response.ok)
+      if (response.status !== 200)
         throw new Error(
-          (await response.json()).message || "Failed to update details."
+          response.data?.message || "Failed to update details."
         );
       setGroup((prev) => ({
         ...prev,
@@ -182,16 +167,12 @@ export default function GroupManagementPage() {
 
   const executeRemoveMember = async (memberId, memberName, isSelf) => {
     try {
-      const response = await fetch(
-        `http://localhost:8145/api/groups/${groupId}/members/${memberId}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
+      const response = await apiClient.delete(
+        `/api/groups/${groupId}/members/${memberId}`
       );
-      if (!response.ok)
+      if (response.status !== 200)
         throw new Error(
-          (await response.json()).message || `Failed to remove ${memberName}.`
+          response.data?.message || `Failed to remove ${memberName}.`
         );
       if (isSelf) {
         showToast(`You have left the group.`);
@@ -207,20 +188,13 @@ export default function GroupManagementPage() {
 
   const handleChangeRole = async (memberId, newRole, memberName) => {
     try {
-      const response = await fetch(
-        `http://localhost:8145/api/groups/${groupId}/members/${memberId}/role`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ role: newRole }),
-        }
+      const response = await apiClient.put(
+        `/api/groups/${groupId}/members/${memberId}/role`,
+        { role: newRole }
       );
-      if (!response.ok)
+      if (response.status !== 200)
         throw new Error(
-          (await response.json()).message || "Failed to update role."
+          response.data?.message || "Failed to update role."
         );
       showToast(`${memberName}'s role updated to ${newRole}.`);
       validateUserAndFetchData();
@@ -233,20 +207,13 @@ export default function GroupManagementPage() {
     if (actionLoading === requestId) return;
     setActionLoading(requestId);
     try {
-      const response = await fetch(
-        `http://localhost:8145/api/groups/${groupId}/requests/${requestId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ action: status }),
-        }
+      const response = await apiClient.put(
+        `/api/groups/${groupId}/requests/${requestId}`,
+        { action: status }
       );
-      if (!response.ok)
+      if (response.status !== 200)
         throw new Error(
-          (await response.json()).message || "Failed to process request."
+          response.data?.message || "Failed to process request."
         );
       const actionVerb = status === "APPROVED" ? "Approved" : "Denied";
       showToast(`${actionVerb} ${userName}'s join request.`);

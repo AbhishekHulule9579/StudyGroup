@@ -390,7 +390,7 @@ const GroupChat = ({
   // --- Render ---
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-white via-purple-50 to-pink-50 w-full max-w-full">
+    <div className="flex flex-col h-full bg-gradient-to-br from-white via-purple-50 to-pink-50 w-full max-w-full min-h-0">
       {/* --- STUNNING HEADER (UPDATED) --- */}
       <div className="w-full flex px-4 py-3 border-b bg-white shadow-sm sticky top-0 z-30 items-center gap-3">
         <button

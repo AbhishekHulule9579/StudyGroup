@@ -38,7 +38,11 @@ export async function deleteSelectedNotifications(notificationIds) {
 // Utility: map backend NotificationDTO -> UI item shape
 export function mapNotificationToUI(n) {
   // Support snake_case or camelCase payloads
-  const createdAt = n.createdAt || n.created_at;
+  let createdAt = n.createdAt || n.created_at;
+  // If createdAt is a string without timezone, treat as UTC by appending 'Z'
+  if (typeof createdAt === 'string' && !createdAt.includes('Z') && !createdAt.includes('+')) {
+    createdAt += 'Z';
+  }
   const isRead = typeof n.isRead === "boolean" ? n.isRead : n.is_read;
   const type = n.type || n.category || "Updates";
 

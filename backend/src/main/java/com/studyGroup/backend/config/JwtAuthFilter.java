@@ -9,6 +9,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -29,7 +30,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private UserService userService;
 
     // Define public paths that the filter should ignore
-    private final AntPathRequestMatcher[] publicEndpoints = {
+    private final RequestMatcher[] publicEndpoints = {
             new AntPathRequestMatcher("/api/users/register/**"),
             new AntPathRequestMatcher("/api/users/signin"),
             new AntPathRequestMatcher("/api/users/forgot-password/**"),
