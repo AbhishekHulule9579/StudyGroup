@@ -34,7 +34,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             new AntPathRequestMatcher("/api/users/signin"),
             new AntPathRequestMatcher("/api/users/forgot-password/**"),
             new AntPathRequestMatcher("/api/courses/**"),
-            new AntPathRequestMatcher("/ws/**")
+            new AntPathRequestMatcher("/ws"),
+            new AntPathRequestMatcher("/ws/**"),
+            new AntPathRequestMatcher("/ws/info"),
+            new AntPathRequestMatcher("/ws/info/**")
     };
 
     @Override

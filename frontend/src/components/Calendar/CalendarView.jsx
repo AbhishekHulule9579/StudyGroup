@@ -3,6 +3,7 @@ import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { motion, AnimatePresence } from "framer-motion";
+import apiClient from "../../api";
 
 // --- Modals (assuming they are in these locations) ---
 import SessionCreateModal from "./SessionCreateModal";
@@ -45,19 +46,11 @@ export default function CalendarView() {
   // ✅ Fetch All Events
   useEffect(() => {
     const fetchEvents = async () => {
-      const token = sessionStorage.getItem("token");
-      if (!token) return;
-
       try {
-        const response = await fetch(
-          "http://localhost:8145/api/calendar/events/all",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (response.ok) {
-          const data = await response.json();
-          const formatted = data.map(formatApiEvent);
-          setEvents(formatted);
-        }
+        const response = await apiClient.get("/api/calendar/events/all");
+        const data = response.data;
+        const formatted = data.map(formatApiEvent);
+        setEvents(formatted);
       } catch (err) {
         console.error("Error fetching events: ", err);
       }
@@ -79,30 +72,9 @@ export default function CalendarView() {
 
   // ✅ Add a new event
   const handleAddEvent = async (session) => {
-    const token = sessionStorage.getItem("token");
-    if (!token) {
-      alert("No authentication token found.");
-      return;
-    }
-
     try {
-      const response = await fetch(
-        "http://localhost:8145/api/calendar/events",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(session),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to create session: ${response.status}`);
-      }
-
-      const created = await response.json();
+      const response = await apiClient.post("/api/calendar/events", session);
+      const created = response.data;
       const newEvent = formatApiEvent(created);
       setEvents((prev) => [...prev, newEvent]);
     } catch (err) {

@@ -2,25 +2,25 @@
 import apiClient from "../api";
 
 export async function getAllNotifications(userId) {
-  const res = await apiClient.get(`/notifications/user/${userId}`);
+  const res = await apiClient.get(`/api/notifications/user/${userId}`);
   return res.data;
 }
 
 export async function markNotificationRead(id) {
-  await apiClient.put(`/notifications/${id}/read`);
+  await apiClient.put(`/api/notifications/${id}/read`);
 }
 
 export async function markAllNotificationsRead(userId) {
-  await apiClient.put(`/notifications/user/${userId}/read-all`);
+  await apiClient.put(`/api/notifications/user/${userId}/read-all`);
 }
 
 export async function deleteAllRead(userId) {
-  await apiClient.delete(`/notifications/user/${userId}/read`);
+  await apiClient.delete(`/api/notifications/user/${userId}/read`);
 }
 
 export async function deleteSelectedNotifications(notificationIds) {
   try {
-    await apiClient.delete(`/notifications/selected`, {
+    await apiClient.delete(`/api/notifications/selected`, {
       data: notificationIds,
     });
   } catch (error) {

@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/groups")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173") // Add your frontend URL here
+// CORS is handled globally in SecurityConfig
 public class GroupChatController {
 
     private final GroupMessageService groupMessageService;

@@ -1,12 +1,15 @@
 package com.studyGroup.backend.controller;
 
+import com.studyGroup.backend.dto.ChatMessageDTO;
 import com.studyGroup.backend.model.GroupMessage;
 import com.studyGroup.backend.model.MessageDocument;
 import com.studyGroup.backend.model.User;
+import com.studyGroup.backend.repository.MessageReplyRepository;
 import com.studyGroup.backend.service.DocumentService;
 import com.studyGroup.backend.service.GroupMessageService;
 import com.studyGroup.backend.service.GroupService;
 import com.studyGroup.backend.service.JWTService;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -21,7 +24,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/documents")
-@CrossOrigin(origins = "http://localhost:5173")
+// CORS is handled globally in SecurityConfig
 public class DocumentController {
 
     @Autowired
@@ -36,6 +39,12 @@ public class DocumentController {
     @Autowired
     private JWTService jwtService;
 
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
+
+    @Autowired
+    private MessageReplyRepository messageReplyRepository;
+
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file,
                                         @RequestParam("groupId") Long groupId,
@@ -43,6 +52,26 @@ public class DocumentController {
         try {
             GroupMessage message = groupMessageService.saveDocumentMessage(groupId, senderId, file);
             documentService.storeFile(file, message);
+
+            // Broadcast the document message to all group members via WebSocket
+            ChatMessageDTO dto = new ChatMessageDTO();
+            dto.setGroupId(message.getGroup().getGroupId());
+            dto.setMessageId(message.getId());
+            dto.setSenderId(message.getSender().getId());
+            dto.setSenderName(message.getSender().getName());
+            dto.setContent(message.getContent());
+            dto.setTimestamp(message.getTimestamp());
+            dto.setMessageType(message.getMessageType());
+
+            // Check for reply info (though documents probably don't reply)
+            messageReplyRepository.findByReplyMessage_Id(message.getId()).ifPresent(mr -> {
+                dto.setReplyToMessageId(mr.getOriginalMessage().getId());
+                dto.setReplyToContent(mr.getOriginalMessage().getContent());
+                dto.setReplyToSenderName(mr.getOriginalMessage().getSender().getName());
+            });
+
+            messagingTemplate.convertAndSend("/topic/group/" + groupId, dto);
+
             return ResponseEntity.ok("File uploaded successfully");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Could not upload the file: " + file.getOriginalFilename() + "!");

@@ -623,20 +623,13 @@ const GroupChat = ({
                               }`}
                               onClick={async () => {
                                 try {
-                                  const token = sessionStorage.getItem("token");
-                                  const res = await fetch(
-                                    `http://localhost:8145/api/documents/${m.id}`,
-                                    {
-                                      headers: {
-                                        Authorization: `Bearer ${token}`,
-                                      },
-                                    }
-                                  );
-                                  if (res.ok) {
-                                    const blob = await res.blob();
-                                    const url =
-                                      window.URL.createObjectURL(blob);
-                                    const a = document.createElement("a");
+                                  const res = await apiClient.get(`/api/documents/${m.id}`, {
+                                    responseType: 'blob'
+                                  });
+                                  if (res.status === 200) {
+                                    const blob = res.data;
+                                    const url = window.URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
                                     a.href = url;
                                     a.download = m.content; // Use the filename from message content
                                     document.body.appendChild(a);
@@ -692,7 +685,7 @@ const GroupChat = ({
       )}
 
       {/* --- STUNNING INPUT BAR --- */}
-      <div className="flex-none w-full border-t bg-white px-0 py-3 sticky bottom-0 shadow-lg z-10">
+      <div className="flex-none w-full border-t bg-white px-0 py-3 md:sticky md:bottom-0 fixed bottom-0 md:relative shadow-lg z-10">
         <form
           className="max-w-full w-full mx-auto flex gap-1 items-center p-2"
           onSubmit={handleSend}
