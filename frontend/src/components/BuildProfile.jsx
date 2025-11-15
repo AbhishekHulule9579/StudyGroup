@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import apiClient from "../api"; // Import the new apiClient
 
 // ==========================
 // Reusable Input Field
@@ -256,27 +257,20 @@ export default function BuildProfile() {
     const fullUserData = { ...savedSignup, ...form };
 
     try {
-      const res = await fetch("http://localhost:8145/api/users/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fullUserData),
-      });
+      const response = await apiClient.post("/api/users/register", fullUserData);
 
-      const message = await res.text();
-
-      if (res.ok) {
+      if (response.status === 200) {
         sessionStorage.removeItem("signupData");
         navigate("/login", {
           state: { message: "Registration successful! Please log in." },
         });
-      } else if (res.status === 403) {
-        setError("Email not verified. Please complete verification first.");
-        setTimeout(() => navigate("/signup"), 3000);
       } else {
-        setError(message || "An error occurred during signup.");
+        setError(response.data || "An error occurred during signup.");
       }
-    } catch {
-      setError("Server error. Please try again.");
+    } catch (err) {
+      const errorMessage = err.response?.data || "Server error. Please try again.";
+      setError(errorMessage);
+      if (err.response?.status === 403) setTimeout(() => navigate("/signup"), 3000);
     } finally {
       setIsSubmitting(false);
     }

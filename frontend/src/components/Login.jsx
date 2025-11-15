@@ -73,14 +73,12 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch("/api/users/signin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
+      // Use the new apiClient
+      const response = await apiClient.post("/api/users/signin", form);
+      const data = response.data;
 
-      if (res.ok) {
+      // Axios considers non-2xx responses as errors, so we just check for success here.
+      if (response.status === 200) {
         // Persist auth for subsequent API/WebSocket calls
         const token = data.token || data.jwt || data.accessToken;
         const user = data.user || data.userDetails || data.profile || null;
@@ -88,15 +86,16 @@ export default function Login() {
         if (user) sessionStorage.setItem("user", JSON.stringify(user));
         navigate("/dashboard");
       } else {
-        if (res.status === 404) {
-          setError(data.message || "User is not registered.");
-          setShowModal(true);
-        } else {
-          setError(data.message || "Invalid email or password.");
-        }
+        // This block is less likely to be hit with axios, but good for safety
+        setError(data.message || "An unexpected error occurred.");
       }
     } catch (err) {
-      setError("Failed to connect to the server. Please try again.");
+      // Axios places error response data in `err.response.data`
+      const errorMessage = err.response?.data?.message || err.response?.data || "Failed to connect to the server. Please try again.";
+      setError(errorMessage);
+      if (err.response?.status === 404) {
+        setShowModal(true);
+      }
     } finally {
       setIsSubmitting(false);
     }

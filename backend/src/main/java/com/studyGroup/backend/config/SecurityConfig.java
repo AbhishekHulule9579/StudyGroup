@@ -42,11 +42,8 @@ public class SecurityConfig {
                     "/api/users/forgot-password/**",
                     "/api/courses/**"
                 ).permitAll()
-                // Be more specific about authenticated document routes
-                .requestMatchers("/api/documents/upload/**").authenticated()
-                .requestMatchers("/api/documents/download/**").authenticated()
-                .requestMatchers("/api/documents/group/**").authenticated()
-                .requestMatchers("/api/documents/delete/**").authenticated()
+                // All document routes should require authentication
+                .requestMatchers("/api/documents/**").authenticated()
 
                 .anyRequest().authenticated()
             )

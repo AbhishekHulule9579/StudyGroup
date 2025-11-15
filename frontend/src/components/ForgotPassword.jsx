@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import apiClient from "../api"; // Import the new apiClient
 
 // Defines the three steps in the password reset process
 const STEPS = {
@@ -37,26 +38,19 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8145/api/users/forgot-password/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
+      const response = await apiClient.post("/api/users/forgot-password/send-otp", { email });
+      const responseText = response.data;
 
-      const responseText = await res.text();
-
-      if (res.ok) {
+      if (response.status === 200) {
         setMessage("OTP sent to your email. Check your inbox.");
         setStep(STEPS.OTP_VERIFY);
-      } else if (res.status === 404) {
-        // User explicitly asked for this: Show error for non-existent users
-        setError("User not found or email not registered. Please check the email address.");
-      } 
-      else {
+      } else {
         setError(responseText || "An error occurred while sending OTP.");
       }
     } catch (err) {
-      setError("Failed to connect to the server. Please try again.");
+      const errorMessage = err.response?.data || "Failed to connect to the server. Please try again.";
+      if (err.response?.status === 404) setError("User not found or email not registered. Please check the email address.");
+      else setError(errorMessage);
     }
     setLoading(false);
   };
@@ -68,22 +62,17 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8145/api/users/forgot-password/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp }),
-      });
+      const response = await apiClient.post("/api/users/forgot-password/verify-otp", { email, otp });
+      const data = response.data;
 
-      const data = await res.json();
-
-      if (res.ok) {
+      if (response.status === 200) {
         setMessage(data.message);
         setStep(STEPS.RESET_PASSWORD);
       } else {
         setError(data.message || "Invalid or expired OTP. Please try again.");
       }
     } catch (err) {
-      setError("Failed to connect to the server. Please try again.");
+      setError(err.response?.data?.message || "Failed to connect to the server. Please try again.");
     }
     setLoading(false);
   };
@@ -101,22 +90,17 @@ export default function ForgotPassword() {
     }
 
     try {
-      const res = await fetch("http://localhost:8145/api/users/forgot-password/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, newPassword }),
-      });
+      const response = await apiClient.post("/api/users/forgot-password/reset-password", { email, newPassword });
+      const data = response.data;
 
-      const data = await res.json();
-
-      if (res.ok) {
+      if (response.status === 200) {
         // Success: Redirect to login with a success message
         navigate("/login", { state: { message: data.message } });
       } else {
         setError(data.message || "Failed to reset password.");
       }
     } catch (err) {
-      setError("Failed to connect to the server. Please try again.");
+      setError(err.response?.data?.message || "Failed to connect to the server. Please try again.");
     }
     setLoading(false);
   };

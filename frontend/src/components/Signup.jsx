@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import apiClient from "../api"; // Import the new apiClient
 
 // A reusable, beautifully styled input field with an icon
 const InputField = ({ icon, ...props }) => (
@@ -126,35 +127,24 @@ export default function Signup() {
 
     setLoading(true);
     try {
-      const res = await fetch(
-        "http://localhost:8145/api/users/register/send-otp",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: form.email, name: form.name }),
-        }
+      const response = await apiClient.post(
+        "/api/users/register/send-otp",
+        { email: form.email, name: form.name }
       );
-      const responseText = await res.text();
-      if (res.ok) {
-        setMessage(responseText);
+      if (response.status === 200) {
+        setMessage(response.data);
         setStep("OTP");
         setTimer(120);
-      } else if (res.status === 409) {
-        setError(
-          <>
-            {" "}
-            {responseText}{" "}
-            <Link to="/login" className="font-bold underline">
-              {" "}
-              Login here.{" "}
-            </Link>{" "}
-          </>
-        );
       } else {
-        setError(responseText || "An error occurred.");
+        setError(response.data || "An error occurred.");
       }
     } catch (err) {
-      setError("Failed to connect to the server. Please try again.");
+      const errorMessage = err.response?.data || "Failed to connect to the server. Please try again.";
+      if (err.response?.status === 409) {
+        setError(<> {errorMessage} <Link to="/login" className="font-bold underline"> Login here. </Link> </>);
+      } else {
+        setError(errorMessage);
+      }
     }
     setLoading(false);
   };
@@ -165,20 +155,15 @@ export default function Signup() {
     setMessage("");
     setLoading(true);
     try {
-      const res = await fetch(
-        "http://localhost:8145/api/users/register/verify-otp",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: form.email, otp: otp }),
-        }
+      const response = await apiClient.post(
+        "/api/users/register/verify-otp",
+        { email: form.email, otp: otp }
       );
-      if (res.ok) {
+      if (response.status === 200) {
         sessionStorage.setItem("signupData", JSON.stringify(form));
         navigate("/build-profile");
       } else {
-        const responseText = await res.text();
-        setError(responseText || "Verification failed.");
+        setError(response.data || "Verification failed.");
       }
     } catch (err) {
       setError("Failed to connect to the server. Please try again.");
