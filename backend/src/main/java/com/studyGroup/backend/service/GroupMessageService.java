@@ -3,10 +3,13 @@ package com.studyGroup.backend.service;
 import com.studyGroup.backend.dto.ChatMessageDTO;
 import com.studyGroup.backend.model.Group;
 import com.studyGroup.backend.model.GroupMessage;
+import com.studyGroup.backend.model.MessageDocument;
 import com.studyGroup.backend.model.User;
 import com.studyGroup.backend.repository.GroupMessageRepository;
 import com.studyGroup.backend.repository.GroupRepository;
+import com.studyGroup.backend.repository.MessageDocumentRepository;
 import com.studyGroup.backend.repository.UserRepository;
+import com.studyGroup.backend.service.DocumentService;
 import com.studyGroup.backend.service.GroupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +26,8 @@ public class GroupMessageService {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
     private final com.studyGroup.backend.repository.MessageReplyRepository messageReplyRepository;
+    private final MessageDocumentRepository messageDocumentRepository;
+    private final DocumentService documentService;
     private final GroupService groupService;
 
     @Transactional
@@ -72,6 +77,12 @@ public class GroupMessageService {
 
         if (!isSender && !isAdmin) {
             throw new RuntimeException("Not authorized to delete this message");
+        }
+
+        // Delete associated MessageDocument if exists
+        MessageDocument doc = messageDocumentRepository.findByMessage_Id(messageId);
+        if (doc != null) {
+            documentService.deleteDocument(doc);
         }
 
         // Remove any reply records referencing this message either as reply or original
