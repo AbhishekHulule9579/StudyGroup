@@ -7,6 +7,7 @@ import com.studyGroup.backend.model.User;
 import com.studyGroup.backend.repository.GroupMessageRepository;
 import com.studyGroup.backend.repository.GroupRepository;
 import com.studyGroup.backend.repository.UserRepository;
+import com.studyGroup.backend.service.GroupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ public class GroupMessageService {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
     private final com.studyGroup.backend.repository.MessageReplyRepository messageReplyRepository;
+    private final GroupService groupService;
 
     @Transactional
     public GroupMessage saveMessage(ChatMessageDTO chatMessage) {
@@ -59,7 +61,16 @@ public class GroupMessageService {
         GroupMessage msg = messageRepository.findById(messageId)
             .orElseThrow(() -> new RuntimeException("Message not found"));
 
-        if (!msg.getSender().getId().equals(requesterUserId)) {
+        // Allow deletion if requester is the sender or an admin of the group
+        boolean isSender = msg.getSender().getId().equals(requesterUserId);
+
+        // Get the requester user
+        User requester = userRepository.findById(requesterUserId)
+            .orElseThrow(() -> new RuntimeException("Requester not found"));
+
+        boolean isAdmin = "Admin".equalsIgnoreCase(groupService.getUserRoleInGroup(msg.getGroup().getGroupId(), requester));
+
+        if (!isSender && !isAdmin) {
             throw new RuntimeException("Not authorized to delete this message");
         }
 

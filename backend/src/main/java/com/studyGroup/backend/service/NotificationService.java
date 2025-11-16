@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,7 +42,7 @@ public class NotificationService {
         notification.setMessage(message);
         notification.setType(type);
         notification.setIsRead(false);
-        notification.setCreatedAt(LocalDateTime.now());
+        notification.setCreatedAt(ZonedDateTime.now(ZoneId.of("Asia/Kolkata")).toLocalDateTime());
         notification.setRelatedEntityId(relatedEntityId);
         notification.setRelatedEntityType(relatedEntityType);
 
