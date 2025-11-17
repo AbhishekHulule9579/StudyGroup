@@ -85,15 +85,31 @@ public class DocumentController {
     }
 
     @GetMapping("/{messageId}")
-    public ResponseEntity<Resource> getDocument(@PathVariable Long messageId) {
-        // Get authenticated user from Spring Security context
+    public ResponseEntity<Resource> getDocument(@PathVariable Long messageId, @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        User currentUser = null;
+
+        // Try to get user from Spring Security context first
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(403).body(null);
+        if (authentication != null && authentication.isAuthenticated()) {
+            String username = authentication.getName();
+            currentUser = userService.getUserByEmail(username).orElse(null);
         }
 
-        String username = authentication.getName();
-        User currentUser = userService.getUserByEmail(username).orElseThrow(() -> new RuntimeException("User not found"));
+        // If not authenticated via Spring Security, try manual token validation
+        if (currentUser == null && authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                String token = authHeader.substring(7);
+                Integer userId = jwtService.extractUserId(token);
+                currentUser = new User();
+                currentUser.setId(userId);
+            } catch (Exception e) {
+                // Token invalid
+            }
+        }
+
+        if (currentUser == null) {
+            return ResponseEntity.status(403).body(null);
+        }
 
         MessageDocument doc = documentService.getDocumentByMessageId(messageId);
         Long groupId = doc.getMessage().getGroup().getGroupId();
@@ -113,16 +129,32 @@ public class DocumentController {
     }
 
     @GetMapping("/group/{groupId}")
-    public ResponseEntity<?> getGroupDocuments(@PathVariable Long groupId) {
+    public ResponseEntity<?> getGroupDocuments(@PathVariable Long groupId, @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            // Get authenticated user from Spring Security context
+            User currentUser = null;
+
+            // Try to get user from Spring Security context first
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication == null || !authentication.isAuthenticated()) {
-                return ResponseEntity.status(403).body("Access denied: Not authenticated");
+            if (authentication != null && authentication.isAuthenticated()) {
+                String username = authentication.getName();
+                currentUser = userService.getUserByEmail(username).orElse(null);
             }
 
-            String username = authentication.getName();
-            User currentUser = userService.getUserByEmail(username).orElseThrow(() -> new RuntimeException("User not found"));
+            // If not authenticated via Spring Security, try manual token validation
+            if (currentUser == null && authHeader != null && authHeader.startsWith("Bearer ")) {
+                try {
+                    String token = authHeader.substring(7);
+                    Integer userId = jwtService.extractUserId(token);
+                    currentUser = new User();
+                    currentUser.setId(userId);
+                } catch (Exception e) {
+                    // Token invalid
+                }
+            }
+
+            if (currentUser == null) {
+                return ResponseEntity.status(403).body("Access denied: Not authenticated");
+            }
 
             String userRole = groupService.getUserRoleInGroup(groupId, currentUser);
             if ("non-member".equals(userRole)) {

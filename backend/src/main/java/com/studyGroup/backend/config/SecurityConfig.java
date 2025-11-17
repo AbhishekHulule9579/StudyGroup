@@ -57,8 +57,6 @@ public class SecurityConfig {
                         .requestMatchers("/ws", "/ws/**", "/ws/info", "/ws/info/**").permitAll()
                         // Allow OPTIONS requests for CORS pre-flight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Temporarily allow document endpoints for testing
-                        .requestMatchers("/api/documents/**").permitAll()
                         // All other requests must be authenticated
                         .anyRequest().authenticated()
                 )
