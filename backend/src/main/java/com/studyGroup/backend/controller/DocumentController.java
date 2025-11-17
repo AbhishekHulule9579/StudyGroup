@@ -9,12 +9,15 @@ import com.studyGroup.backend.service.DocumentService;
 import com.studyGroup.backend.service.GroupMessageService;
 import com.studyGroup.backend.service.GroupService;
 import com.studyGroup.backend.service.JWTService;
+import com.studyGroup.backend.service.UserService;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -38,6 +41,9 @@ public class DocumentController {
 
     @Autowired
     private JWTService jwtService;
+
+    @Autowired
+    private UserService userService;
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
@@ -79,12 +85,15 @@ public class DocumentController {
     }
 
     @GetMapping("/{messageId}")
-    public ResponseEntity<Resource> getDocument(@PathVariable Long messageId, @RequestHeader("Authorization") String authHeader) {
-        // Verify user is authorized to access this document (must be group member)
-        String token = authHeader.replace("Bearer ", "");
-        Integer userId = jwtService.extractUserId(token);
-        User currentUser = new User();
-        currentUser.setId(userId);
+    public ResponseEntity<Resource> getDocument(@PathVariable Long messageId) {
+        // Get authenticated user from Spring Security context
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(403).body(null);
+        }
+
+        String username = authentication.getName();
+        User currentUser = userService.getUserByEmail(username).orElseThrow(() -> new RuntimeException("User not found"));
 
         MessageDocument doc = documentService.getDocumentByMessageId(messageId);
         Long groupId = doc.getMessage().getGroup().getGroupId();
@@ -104,13 +113,16 @@ public class DocumentController {
     }
 
     @GetMapping("/group/{groupId}")
-    public ResponseEntity<?> getGroupDocuments(@PathVariable Long groupId, @RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<?> getGroupDocuments(@PathVariable Long groupId) {
         try {
-            // Verify user is member of the group
-            String token = authHeader.replace("Bearer ", "");
-            Integer userId = jwtService.extractUserId(token);
-            User currentUser = new User();
-            currentUser.setId(userId);
+            // Get authenticated user from Spring Security context
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return ResponseEntity.status(403).body("Access denied: Not authenticated");
+            }
+
+            String username = authentication.getName();
+            User currentUser = userService.getUserByEmail(username).orElseThrow(() -> new RuntimeException("User not found"));
 
             String userRole = groupService.getUserRoleInGroup(groupId, currentUser);
             if ("non-member".equals(userRole)) {
