@@ -57,6 +57,8 @@ public class SecurityConfig {
                         .requestMatchers("/ws", "/ws/**", "/ws/info", "/ws/info/**").permitAll()
                         // Allow OPTIONS requests for CORS pre-flight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Temporarily allow document endpoints for testing
+                        .requestMatchers("/api/documents/**").permitAll()
                         // All other requests must be authenticated
                         .anyRequest().authenticated()
                 )
@@ -78,8 +80,8 @@ public class SecurityConfig {
             "https://studygroup-production-aa02.up.railway.app" // New frontend URL
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        // Allowing all headers is simpler and safer for now.
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+        // Explicitly allow Authorization header for JWT tokens
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "X-Requested-With"));
         configuration.setExposedHeaders(List.of("Authorization"));
         // CRITICAL: This is required to allow the browser to send the Authorization header with credentials.
         configuration.setAllowCredentials(true);

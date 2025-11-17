@@ -14,6 +14,7 @@ if (import.meta.env.PROD && !baseURL) {
 // 1. Create an axios instance
 const apiClient = axios.create({
   baseURL: baseURL,
+  withCredentials: true, // Enable sending cookies and Authorization header for cross-origin requests
 });
 
 // 2. Add a request interceptor to automatically attach the JWT token
