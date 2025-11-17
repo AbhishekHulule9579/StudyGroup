@@ -54,8 +54,40 @@ public class DocumentController {
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file,
                                         @RequestParam("groupId") Long groupId,
-                                        @RequestParam("senderId") Integer senderId) {
+                                        @RequestParam("senderId") Integer senderId,
+                                        @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
+            // Authenticate user
+            User currentUser = null;
+
+            // Try to get user from Spring Security context first
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()) {
+                String username = authentication.getName();
+                currentUser = userService.getUserByEmail(username).orElse(null);
+            }
+
+            // If not authenticated via Spring Security, try manual token validation
+            if (currentUser == null && authHeader != null && authHeader.startsWith("Bearer ")) {
+                try {
+                    String token = authHeader.substring(7);
+                    Integer userId = jwtService.extractUserId(token);
+                    currentUser = new User();
+                    currentUser.setId(userId);
+                } catch (Exception e) {
+                    // Token invalid
+                }
+            }
+
+            if (currentUser == null) {
+                return ResponseEntity.status(403).body("Access denied: Not authenticated");
+            }
+
+            // Verify senderId matches authenticated user
+            if (!currentUser.getId().equals(senderId)) {
+                return ResponseEntity.status(403).body("Access denied: Invalid sender");
+            }
+
             GroupMessage message = groupMessageService.saveDocumentMessage(groupId, senderId, file);
             documentService.storeFile(file, message);
 
